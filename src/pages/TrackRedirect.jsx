@@ -12,7 +12,7 @@ export default function TrackRedirect() {
   useEffect(() => {
     const fetchAndPlay = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/track/${id}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/track/${id}`);
         if (res.data.success && res.data.song) {
           playTrack(res.data.song);
           navigate('/explore', { replace: true });

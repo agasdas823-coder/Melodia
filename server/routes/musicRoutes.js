@@ -228,14 +228,45 @@ router.get('/youtube-playlist/:id', async (req, res, next) => {
 });
 
 // ── GET /api/track/:id ────────────────────────────────────────────────────────
-// Fetches track metadata by YouTube Video ID
+// Fetches track metadata by iTunes ID or YouTube Video ID
 router.get('/track/:id', async (req, res, next) => {
   try {
-    const videoId = req.params.id;
-    if (!videoId) return res.status(400).json({ success: false, error: 'No video ID provided' });
+    const id = req.params.id;
+    if (!id) return res.status(400).json({ success: false, error: 'No track ID provided' });
 
-    const vid = await YouTube.getVideo(`https://www.youtube.com/watch?v=${videoId}`);
-    if (!vid) return res.status(404).json({ success: false, error: 'Video not found' });
+    // If it's an all-numeric ID, it's an iTunes ID
+    if (/^\d+$/.test(id)) {
+      const response = await axios.get(`https://itunes.apple.com/lookup?id=${id}`);
+      if (response.data && response.data.results && response.data.results.length > 0) {
+        const track = response.data.results[0];
+        const highResArtwork = track.artworkUrl100 ? track.artworkUrl100.replace('100x100bb', '600x600bb') : null;
+        
+        const song = {
+          id: track.trackId.toString(),
+          _id: track.trackId.toString(),
+          title: track.trackName,
+          name: track.trackName,
+          artist: track.artistName,
+          artists: [{ name: track.artistName }],
+          album: track.collectionName || 'Single',
+          thumbnail: highResArtwork,
+          thumbnail_medium: track.artworkUrl100,
+          coverArtUrl: highResArtwork,
+          duration: Math.floor(track.trackTimeMillis / 1000),
+          duration_ms: track.trackTimeMillis,
+          duration_string: fmtDurationMs(track.trackTimeMillis),
+          url: track.trackViewUrl,
+          type: 'song'
+        };
+        return res.json({ success: true, song });
+      } else {
+        return res.status(404).json({ success: false, error: 'Track not found on iTunes' });
+      }
+    }
+
+    // Otherwise, assume it's a YouTube Video ID
+    const vid = await YouTube.getVideo(`https://www.youtube.com/watch?v=${id}`);
+    if (!vid) return res.status(404).json({ success: false, error: 'Video not found on YouTube' });
 
     const song = {
       id: vid.id,
