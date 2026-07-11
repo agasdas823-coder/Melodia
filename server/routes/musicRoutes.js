@@ -1,6 +1,6 @@
 import express from 'express';
 import YouTubeSR from 'youtube-sr';
-import ytdl from '@distube/ytdl-core';
+import youtubeDl from 'youtube-dl-exec';
 import axios from 'axios';
 // genius-lyrics removed — its default token was revoked by Genius, causing HTML responses.
 // We now use LRCLIB (free, open-source, no auth) + Lyrics.ovh as fallback.
@@ -10,10 +10,10 @@ const YouTube = YouTubeSR.default ?? YouTubeSR;
 
 const SEARCH_LIMIT = 20;
 
-// In-memory cache for resolved stream info (avoids re-resolving on every Range request/seek)
-// Key: "artist|title", Value: { videoUrl, resolvedAt }
+// In-memory cache for resolved stream URLs (avoids re-running yt-dlp on every Range request/seek)
+// Key: "artist|title", Value: { url, contentType, resolvedAt }
 const streamCache = new Map();
-const STREAM_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const STREAM_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes (YouTube URLs expire after ~6h)
 
 // Helper: convert milliseconds -> "m:ss"
 function fmtDurationMs(ms) {
@@ -294,7 +294,6 @@ router.get('/track/:id', async (req, res, next) => {
 });
 
 // ── GET /api/stream/:id — proxy audio bytes from YouTube ──────────────────────
-// Uses @distube/ytdl-core (pure Node.js, no Python dependency) to stream audio.
 // The browser can't fetch googlevideo.com directly (CORS), so we pipe the bytes
 // through our own server. Howler.js points at this URL with html5:true.
 router.get('/stream/:id', async (req, res, next) => {
@@ -306,14 +305,16 @@ router.get('/stream/:id', async (req, res, next) => {
 
   try {
     const cacheKey = `${artist}|${title}`.toLowerCase();
-    let videoUrl;
+    let streamUrl;
+    let contentType;
 
     // Check cache first
     const cached = streamCache.get(cacheKey);
     if (cached && (Date.now() - cached.resolvedAt < STREAM_CACHE_TTL_MS)) {
-      videoUrl = cached.videoUrl;
+      streamUrl = cached.url;
+      contentType = cached.contentType;
     } else {
-      // Search YouTube for the track
+      // Resolve fresh URL
       const searchQuery = `${artist} - ${title} audio`;
       const videos = await YouTube.search(searchQuery, { limit: 1, type: 'video', safeSearch: false });
 
@@ -321,45 +322,50 @@ router.get('/stream/:id', async (req, res, next) => {
         return res.status(404).json({ success: false, error: { message: 'Could not find a matching YouTube video.' } });
       }
 
-      videoUrl = `https://www.youtube.com/watch?v=${videos[0].id}`;
+      const videoId = videos[0].id;
+      const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+      const rawUrl = await youtubeDl(url, {
+        getUrl: true,
+        format: 'bestaudio'
+      });
+      
+      if (!rawUrl) {
+        return res.status(404).json({ success: false, error: { message: 'No streamable format found for this video.' } });
+      }
+
+      streamUrl = rawUrl.trim();
+      contentType = streamUrl.includes('webm') ? 'audio/webm' : 'audio/mp4';
 
       // Store in cache
-      streamCache.set(cacheKey, { videoUrl, resolvedAt: Date.now() });
+      streamCache.set(cacheKey, { url: streamUrl, contentType, resolvedAt: Date.now() });
     }
 
-    // Use @distube/ytdl-core to stream audio (pure Node.js — no Python needed)
-    const audioStream = ytdl(videoUrl, {
-      filter: 'audioonly',
-      quality: 'highestaudio',
-      highWaterMark: 1 << 25, // 32MB buffer for smooth streaming
+    // Support Range requests for seeking in Howler.js html5 mode
+    const rangeHeader = req.headers.range;
+    const headers = { 'User-Agent': 'Mozilla/5.0' };
+    if (rangeHeader) {
+      headers['Range'] = rangeHeader;
+    }
+
+    // Pipe the audio from googlevideo through our server
+    const upstream = await axios.get(streamUrl, {
+      responseType: 'stream',
+      headers,
     });
 
-    // Set response headers
-    res.setHeader('Content-Type', 'audio/webm');
-    res.setHeader('Transfer-Encoding', 'chunked');
-    res.setHeader('Accept-Ranges', 'none');
-    res.setHeader('Cache-Control', 'no-cache');
+    const statusCode = upstream.status;
+    res.status(statusCode);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (upstream.headers['content-length']) {
+      res.setHeader('Content-Length', upstream.headers['content-length']);
+    }
+    if (upstream.headers['content-range']) {
+      res.setHeader('Content-Range', upstream.headers['content-range']);
+    }
 
-    // Handle client disconnect
-    req.on('close', () => {
-      audioStream.destroy();
-    });
-
-    // Handle stream errors
-    audioStream.on('error', (err) => {
-      console.error(`[/api/stream] ytdl stream error for ${title} - ${artist}:`, err.message);
-      // Invalidate cache on error so next request retries
-      streamCache.delete(cacheKey);
-      if (!res.headersSent) {
-        return res.status(502).json({
-          success: false,
-          error: { message: `Stream failed: ${err.message}` },
-        });
-      }
-    });
-
-    // Pipe audio directly to response
-    audioStream.pipe(res);
+    upstream.data.pipe(res);
   } catch (err) {
     console.error(`[/api/stream] Failed for ${title} - ${artist}:`, err.message);
     if (!res.headersSent) {
