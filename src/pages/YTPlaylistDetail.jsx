@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../context/PlayerContext';
 import PlaylistCover from '../components/playlist/PlaylistCover';
 import AddToPlaylistDropdown from '../components/playlist/AddToPlaylistDropdown';
+import { API_URL } from '../utils/config';
 
 export default function YTPlaylistDetail() {
   const { id } = useParams();
@@ -17,7 +18,7 @@ export default function YTPlaylistDetail() {
     const fetchPlaylist = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/youtube-playlist/${id}`);
+        const res = await fetch(`${API_URL}/api/youtube-playlist/${id}`);
         if (!res.ok) throw new Error('Failed to fetch playlist');
         const data = await res.json();
         if (data.success) {

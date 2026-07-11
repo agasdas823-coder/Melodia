@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, Music2, Mail, Lock, User, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
+import { API_URL } from "../utils/config";
 
 function MelodiLogo() {
   return (
@@ -88,7 +89,7 @@ export default function Login({ initialTab = "login" }) {
     setLoading(true);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/auth/login`, {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

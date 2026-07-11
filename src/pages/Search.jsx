@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { usePlayer } from "../context/PlayerContext";
 import { Search as SearchIcon, X, Play, Pause, Music, Heart, Plus } from "lucide-react";
 import AddToPlaylistDropdown from "../components/playlist/AddToPlaylistDropdown";
+import { API_URL } from "../utils/config";
 
 const POPULAR_SEARCHES = [
   "Michael Jackson",
@@ -46,7 +47,7 @@ export default function Search() {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=${encodeURIComponent(trimmed)}&limit=20&type=${typeToUse}`
+        `${API_URL}/api/search?q=${encodeURIComponent(trimmed)}&limit=20&type=${typeToUse}`
       );
       if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
@@ -130,7 +131,7 @@ export default function Search() {
   const handleAddPlaylist = async (item, e) => {
     e.stopPropagation();
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/youtube-playlist/${item.id}`);
+      const response = await fetch(`${API_URL}/api/youtube-playlist/${item.id}`);
       if (!response.ok) throw new Error("Failed to fetch playlist");
       const data = await response.json();
       createPlaylist(item.title, "Imported from YouTube", item.thumbnail || item.thumbnail_medium, data.playlist?.songs || [], "YouTube");

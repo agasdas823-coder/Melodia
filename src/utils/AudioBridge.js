@@ -1,4 +1,5 @@
 import { Howl } from 'howler';
+import { API_URL } from './config';
 
 export class AudioBridge {
   constructor({ volume = 0.7, onPlay, onPause, onEnd, onProgress, onLoad }) {
@@ -23,7 +24,7 @@ export class AudioBridge {
     if (this.currentTrackId === track.id) return;
 
     try {
-      const streamUrl = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+      const streamUrl = `${API_URL}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
       
       const howl = new Howl({
         src: [streamUrl],
@@ -45,7 +46,7 @@ export class AudioBridge {
     this.currentTrackId = track.id;
 
     try {
-      const streamUrl = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+      const streamUrl = `${API_URL}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
 
       this.howl = new Howl({
         src: [streamUrl],
@@ -146,7 +147,7 @@ export class AudioBridge {
           this.onLoadCallback(this.howl.duration());
         }
       } else {
-        const streamUrl = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+        const streamUrl = `${API_URL}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
 
         this.howl = new Howl({
           src: [streamUrl],

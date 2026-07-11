@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { usePlayer } from '../context/PlayerContext';
+import { API_URL } from '../utils/config';
 
 export default function TrackRedirect() {
   const { id } = useParams();
@@ -16,7 +17,7 @@ export default function TrackRedirect() {
 
     const fetchAndPreview = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/track/${id}`);
+        const res = await axios.get(`${API_URL}/api/track/${id}`);
         if (res.data.success && res.data.song) {
           // Load the track without playing it
           loadTrack(res.data.song);
