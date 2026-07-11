@@ -259,7 +259,7 @@ export function PlayerProvider({ children }) {
     bridge.prefetch(track);
 
     if (!lyricsCache[track.id]) {
-      fetch(`http://localhost:5002/api/lyrics?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`)
+      fetch(`${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/lyrics?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`)
         .then(res => res.json())
         .then(data => {
           if (data.lyrics) {

@@ -11,7 +11,7 @@ export default function Landing() {
   useEffect(() => {
     const fetchTrending = async () => {
       try {
-        const response = await axios.get('http://localhost:5002/api/search?q=trending+popular+music&limit=4');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=trending+popular+music&limit=4`);
         setTrendingSongs(response.data.songs || []);
       } catch (err) {
         console.error('Failed to fetch trending songs from server, falling back to mock data:', err);

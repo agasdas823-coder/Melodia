@@ -32,7 +32,7 @@ export default function LyricsModal() {
       return;
     }
 
-    fetch(`http://localhost:5002/api/lyrics?title=${encodeURIComponent(currentTrack.title)}&artist=${encodeURIComponent(currentTrack.artist)}`)
+    fetch(`${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/lyrics?title=${encodeURIComponent(currentTrack.title)}&artist=${encodeURIComponent(currentTrack.artist)}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.lyrics) {
