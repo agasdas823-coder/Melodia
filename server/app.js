@@ -7,7 +7,9 @@ const app = express();
 
 // Middlewares
 app.use(cors({
-  origin: ['http://localhost:5174', 'http://127.0.0.1:5174'],
+  origin: process.env.NODE_ENV === 'production' 
+    ? true // Allow any origin in production, or set to specific railway domain
+    : ['http://localhost:5174', 'http://127.0.0.1:5174', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
@@ -18,9 +20,21 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);   // JWT register/login (no Spotify)
 app.use('/api', musicRoutes);        // /api/search, /api/stream/:id, /api/video/:id
 
-// Base route
-app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to the Melodia API service' });
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static frontend files in production
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// Fallback all other routes to index.html (SPA routing)
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // Centralized error handler
