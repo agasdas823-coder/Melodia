@@ -8,7 +8,8 @@
     "dev": "concurrently \"vite\" \"cd server && node --watch server.js > NUL\"",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "cd server && npm install"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
