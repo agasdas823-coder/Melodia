@@ -17,7 +17,7 @@ const POPULAR_SEARCHES = [
 
 export default function Search() {
   const navigate = useNavigate();
-  const { currentTrack, isPlaying, playTrack, togglePlay, toggleLike, isLiked, createPlaylist, prefetchTrack } = usePlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlay, toggleLike, isLiked, createPlaylist, prefetchTrack, loadTrack, setNowPlayingOpen } = usePlayer();
   const [inputValue, setInputValue] = useState("");
   const [committedQuery, setCommittedQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -46,7 +46,7 @@ export default function Search() {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/search?q=${encodeURIComponent(trimmed)}&limit=20&type=${typeToUse}`
+        `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=${encodeURIComponent(trimmed)}&limit=20&type=${typeToUse}`
       );
       if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
@@ -110,11 +110,18 @@ export default function Search() {
       return;
     }
 
+    // Open full-screen preview (paused) instead of playing
+    loadTrack(item);
+    setNowPlayingOpen(true);
+  };
+
+  const handlePlayClick = (item, e) => {
+    if (e) e.stopPropagation();
+    
     const isCurrent = currentTrack && (currentTrack.id === item.id || currentTrack._id === item._id);
     if (isCurrent) {
       togglePlay();
     } else {
-      // Find all songs in the results to act as the queue
       const playableResults = results.filter(r => r.type !== 'playlist');
       playTrack(item, playableResults);
     }
@@ -123,7 +130,7 @@ export default function Search() {
   const handleAddPlaylist = async (item, e) => {
     e.stopPropagation();
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/youtube-playlist/${item.id}`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/youtube-playlist/${item.id}`);
       if (!response.ok) throw new Error("Failed to fetch playlist");
       const data = await response.json();
       createPlaylist(item.title, "Imported from YouTube", item.thumbnail || item.thumbnail_medium, data.playlist?.songs || [], "YouTube");
@@ -279,7 +286,7 @@ export default function Search() {
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       {!isPlaylist ? (
                         <button
-                          onClick={(e) => handleItemClick(item, e)}
+                          onClick={(e) => handlePlayClick(item, e)}
                           className="w-12 h-12 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/40 hover:scale-110 active:scale-95 transition-transform cursor-pointer"
                         >
                           {showPlaying ? (

@@ -1,12 +1,12 @@
 import express from 'express';
 import YouTubeSR from 'youtube-sr';
-import youtubedl from 'youtube-dl-exec';
+import youtubeDl from 'youtube-dl-exec';
 import axios from 'axios';
-import { Client } from 'genius-lyrics';
+// genius-lyrics removed — its default token was revoked by Genius, causing HTML responses.
+// We now use LRCLIB (free, open-source, no auth) + Lyrics.ovh as fallback.
 
 const router = express.Router();
 const YouTube = YouTubeSR.default ?? YouTubeSR;
-const genius = new Client(); // Free tier
 
 const SEARCH_LIMIT = 20;
 
@@ -325,23 +325,17 @@ router.get('/stream/:id', async (req, res, next) => {
       const videoId = videos[0].id;
       const url = `https://www.youtube.com/watch?v=${videoId}`;
 
-      const output = await youtubedl(url, {
-        dumpJson: true,
-        noWarnings: true,
-        preferFreeFormats: true,
-        youtubeSkipDashManifest: true,
+      const rawUrl = await youtubeDl(url, {
+        getUrl: true,
+        format: 'bestaudio'
       });
-
-      const format = output.formats
-        .filter(f => f.acodec !== 'none' && f.vcodec === 'none')
-        .sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
-
-      if (!format || !format.url) {
+      
+      if (!rawUrl) {
         return res.status(404).json({ success: false, error: { message: 'No streamable format found for this video.' } });
       }
 
-      streamUrl = format.url;
-      contentType = format.acodec === 'mp4a.40.2' ? 'audio/mp4' : 'audio/webm';
+      streamUrl = rawUrl.trim();
+      contentType = streamUrl.includes('webm') ? 'audio/webm' : 'audio/mp4';
 
       // Store in cache
       streamCache.set(cacheKey, { url: streamUrl, contentType, resolvedAt: Date.now() });
@@ -383,7 +377,7 @@ router.get('/stream/:id', async (req, res, next) => {
   }
 });
 
-// ── GET /api/lyrics — Fetch lyrics via Genius API with fallback to Lyrics.ovh ────────────────
+// ── GET /api/lyrics — Fetch lyrics via LRCLIB (primary) with fallback to Lyrics.ovh ────────────
 router.get('/lyrics', async (req, res, next) => {
   const { title, artist } = req.query;
   if (!title || !artist) {
@@ -391,28 +385,32 @@ router.get('/lyrics', async (req, res, next) => {
   }
 
   try {
-    // 1. Try Genius API
-    const searches = await genius.songs.search(`${artist} ${title}`);
-    if (searches && searches.length > 0) {
-      // Find the first result that roughly matches
-      const firstSong = searches[0];
-      const lyrics = await firstSong.lyrics();
-      
+    // 1. Try LRCLIB (free, open-source, no auth needed)
+    const lrclibRes = await axios.get('https://lrclib.net/api/search', {
+      params: { q: `${artist} ${title}` },
+      headers: { 'User-Agent': 'Melodia/1.0.0 (https://github.com/melodia)' },
+      timeout: 5000
+    });
+    if (lrclibRes.data && lrclibRes.data.length > 0) {
+      const match = lrclibRes.data[0];
+      const lyrics = match.plainLyrics || match.syncedLyrics;
       if (lyrics) {
         return res.json({
           success: true,
           lyrics,
-          source: 'Genius'
+          source: 'LRCLIB'
         });
       }
     }
   } catch (err) {
-    console.warn(`[Genius API] Failed to fetch lyrics for ${title} - ${artist}:`, err.message);
+    console.warn(`[LRCLIB] Failed to fetch lyrics for ${title} - ${artist}:`, err.message);
   }
 
   try {
     // 2. Fallback to Lyrics.ovh
-    const ovhResponse = await axios.get(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`);
+    const ovhResponse = await axios.get(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`, {
+      timeout: 8000
+    });
     if (ovhResponse.data && ovhResponse.data.lyrics) {
       return res.json({
         success: true,

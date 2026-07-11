@@ -118,12 +118,12 @@ export default function Explore() {
       let endpoint = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=top+hits+2024&limit=20`;
 
       if (activeFilterTab === "genre" && selectedSubFilter) {
-        endpoint = `${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/search?q=${encodeURIComponent(selectedSubFilter)}&limit=20`;
+        endpoint = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=${encodeURIComponent(selectedSubFilter)}&limit=20`;
       } else if (activeFilterTab === "artist" && selectedSubFilter) {
-        endpoint = `${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/search?q=${encodeURIComponent(selectedSubFilter)}&limit=20`;
+        endpoint = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=${encodeURIComponent(selectedSubFilter)}&limit=20`;
       } else if (activeFilterTab === "mood" && selectedSubFilter) {
         const moodQuery = selectedSubFilter;
-        endpoint = `${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/search?q=${encodeURIComponent(moodQuery)}&limit=20`;
+        endpoint = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=${encodeURIComponent(moodQuery)}&limit=20`;
       }
 
       const response = await axios.get(endpoint);
@@ -180,7 +180,7 @@ export default function Explore() {
   const handleAddPlaylist = async (item, e) => {
     e.stopPropagation();
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/youtube-playlist/${item.id}`);
+      const response = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/youtube-playlist/${item.id}`);
       const data = response.data;
       createPlaylist(item.title, "Imported from YouTube", item.thumbnail || item.thumbnail_medium, data.playlist?.songs || [], "YouTube");
     } catch (err) {

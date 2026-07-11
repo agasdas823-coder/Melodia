@@ -17,7 +17,7 @@ export default function YTPlaylistDetail() {
     const fetchPlaylist = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/youtube-playlist/${id}`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/youtube-playlist/${id}`);
         if (!res.ok) throw new Error('Failed to fetch playlist');
         const data = await res.json();
         if (data.success) {

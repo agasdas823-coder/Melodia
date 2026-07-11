@@ -29,3 +29,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Scraper temporary scripts
+server/*-player-script.js
+*-player-script.js

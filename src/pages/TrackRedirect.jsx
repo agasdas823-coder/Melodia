@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { usePlayer } from '../context/PlayerContext';
@@ -6,15 +6,23 @@ import { usePlayer } from '../context/PlayerContext';
 export default function TrackRedirect() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { playTrack } = usePlayer();
+  const { loadTrack, setNowPlayingOpen } = usePlayer();
   const [error, setError] = useState(null);
+  const hasFetched = useRef(false);
 
   useEffect(() => {
-    const fetchAndPlay = async () => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
+    const fetchAndPreview = async () => {
       try {
         const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/track/${id}`);
         if (res.data.success && res.data.song) {
-          playTrack(res.data.song);
+          // Load the track without playing it
+          loadTrack(res.data.song);
+          // Open the full-screen Now Playing panel
+          setNowPlayingOpen(true);
+          // Navigate to explore so user has a page behind the panel
           navigate('/explore', { replace: true });
         } else {
           setError('Track not found or unavailable.');
@@ -24,8 +32,8 @@ export default function TrackRedirect() {
         setError('Failed to load track.');
       }
     };
-    fetchAndPlay();
-  }, [id, playTrack, navigate]);
+    fetchAndPreview();
+  }, [id, loadTrack, setNowPlayingOpen, navigate]);
 
   if (error) {
     return (

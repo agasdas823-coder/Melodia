@@ -49,6 +49,7 @@ export function PlayerProvider({ children }) {
   const [lyricsCache, setLyricsCache] = useState({});
   const [isShuffled, setIsShuffled] = useState(false);
   const [isLooped, setIsLooped] = useState(false);
+  const [nowPlayingOpen, setNowPlayingOpen] = useState(false);
 
   const { user } = useAuth();
   
@@ -259,7 +260,7 @@ export function PlayerProvider({ children }) {
     bridge.prefetch(track);
 
     if (!lyricsCache[track.id]) {
-      fetch(`${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/lyrics?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`)
+      fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/lyrics?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`)
         .then(res => res.json())
         .then(data => {
           if (data.lyrics) {
@@ -288,6 +289,22 @@ export function PlayerProvider({ children }) {
       }
     };
   }, []);
+
+  // LoadTrack: sets the track in the player without playing it (for previews)
+  const loadTrack = useCallback((track) => {
+    if (!track) return;
+    setCurrentTrack(track);
+    setProgress(0);
+    setDuration(track.duration || 0);
+    setIsPlaying(false);
+    setQueue((prev) => {
+      const exists = prev.some((t) => t.id === track.id || t._id === track._id);
+      if (!exists) return [track, ...prev];
+      return prev;
+    });
+    const bridge = getBridge();
+    bridge.load(track);
+  }, [getBridge]);
 
   // PlayTrack implementation using AudioBridge
   const playTrack = useCallback((track, newQueue = []) => {
@@ -435,6 +452,7 @@ export function PlayerProvider({ children }) {
         usingFallback,
         lyricsOpen,
         setLyricsOpen,
+        loadTrack,
         playTrack,
         togglePlay,
         nextTrack: handleNext,
@@ -461,6 +479,8 @@ export function PlayerProvider({ children }) {
         toggleLoop,
         lyricsCache,
         prefetchTrack,
+        nowPlayingOpen,
+        setNowPlayingOpen,
       }}
     >
       {children}

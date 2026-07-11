@@ -23,7 +23,7 @@ export class AudioBridge {
     if (this.currentTrackId === track.id) return;
 
     try {
-      const streamUrl = `${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+      const streamUrl = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
       
       const howl = new Howl({
         src: [streamUrl],
@@ -36,6 +36,51 @@ export class AudioBridge {
       this.prefetchCache[track.id] = howl;
     } catch (err) {
       console.error('AudioBridge prefetch error:', err);
+    }
+  }
+
+  load(track) {
+    if (!track) return;
+    this.unload();
+    this.currentTrackId = track.id;
+
+    try {
+      const streamUrl = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+
+      this.howl = new Howl({
+        src: [streamUrl],
+        html5: true,
+        volume: this.volume,
+        format: ['mp4', 'm4a', 'webm'],
+        onplay: () => {
+          if (this.onPlayCallback) this.onPlayCallback();
+          this.startProgress();
+        },
+        onpause: () => {
+          if (this.onPauseCallback) this.onPauseCallback();
+          this.stopProgress();
+        },
+        onend: () => {
+          if (this.onEndCallback) this.onEndCallback();
+          this.stopProgress();
+        },
+        onload: () => {
+          if (this.onLoadCallback) {
+            this.onLoadCallback(this.howl.duration());
+          }
+        },
+        onloaderror: (id, err) => {
+          console.error("Howler load error", err);
+        },
+        onplayerror: (id, err) => {
+          console.error("Howler play error", err);
+          this.howl.once('unlock', () => {
+            this.howl.play();
+          });
+        }
+      });
+    } catch (err) {
+      console.error('AudioBridge load error:', err);
     }
   }
 
@@ -101,7 +146,7 @@ export class AudioBridge {
           this.onLoadCallback(this.howl.duration());
         }
       } else {
-        const streamUrl = `${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || "http://localhost:5002"}`}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+        const streamUrl = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
 
         this.howl = new Howl({
           src: [streamUrl],

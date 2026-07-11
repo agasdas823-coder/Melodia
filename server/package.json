@@ -14,9 +14,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^4.21.2",
-    "genius-lyrics": "^4.4.7",
     "jsonwebtoken": "^9.0.3",
-    "play-dl": "^1.9.7",
     "youtube-dl-exec": "^3.1.9",
     "youtube-sr": "^4.3.12"
   }

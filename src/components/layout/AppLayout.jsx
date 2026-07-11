@@ -51,6 +51,8 @@ export default function AppLayout() {
     isLiked,
     playlists,
     createPlaylist,
+    nowPlayingOpen,
+    setNowPlayingOpen,
   } = usePlayer();
 
   const navigate = useNavigate();
@@ -58,7 +60,6 @@ export default function AppLayout() {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [shuffled, setShuffled] = useState(false);
   const [repeated, setRepeated] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(false);
 
   // Avatar from user context
   const userAvatar = user?.avatar || null;
@@ -304,7 +305,7 @@ export default function AppLayout() {
           {/* Track info */}
           <div className="flex items-center gap-3 w-60 shrink-0 text-left">
             <div
-              onClick={() => setPanelOpen(true)}
+              onClick={() => setNowPlayingOpen(true)}
               className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
               title="Open Now Playing"
             >
@@ -389,7 +390,7 @@ export default function AppLayout() {
           {/* Volume and Lyric Options */}
           <div className="flex items-center justify-end gap-3 w-60 shrink-0 text-muted-foreground">
             <button
-              onClick={() => setPanelOpen(true)}
+              onClick={() => setNowPlayingOpen(true)}
               className="hover:text-white transition-colors cursor-pointer"
               title="Expand Player"
             >
@@ -431,7 +432,7 @@ export default function AppLayout() {
       <LyricsModal />
 
       {/* Full-screen Now Playing Panel */}
-      <NowPlayingPanel isOpen={panelOpen} onClose={() => setPanelOpen(false)} />
+      <NowPlayingPanel isOpen={nowPlayingOpen} onClose={() => setNowPlayingOpen(false)} />
 
       {/* Mobile Nav Tabs (BottomNavBar) */}
       <nav className="md:hidden flex items-center justify-between px-6 w-full fixed bottom-0 left-0 z-40 h-16 bg-[#0E0E1C]/95 backdrop-blur-xl border-t border-border shadow-2xl">
