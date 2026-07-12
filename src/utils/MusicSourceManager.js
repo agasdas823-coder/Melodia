@@ -135,7 +135,7 @@ export class MusicSourceManager {
       const { title: t, artist: a } = unique[i];
       try {
         console.log(`[MusicSourceManager] YouTube attempt ${i + 1}: "${t}" by "${a}"`);
-        const streamUrl = `${API_URL}/api/stream/${track.id}?title=${encodeURIComponent(t)}&artist=${encodeURIComponent(a)}`;
+        const streamUrl = `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(t)}&artist=${encodeURIComponent(a)}`;
         const res = await fetch(streamUrl);
         if (!res.ok) throw new Error(`Backend returned ${res.status}`);
         const data = await res.json();

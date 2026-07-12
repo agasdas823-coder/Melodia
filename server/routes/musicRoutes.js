@@ -566,4 +566,101 @@ router.get('/lyrics', async (req, res, next) => {
   });
 });
 
+// ── GET /api/music/stream/:videoId — fast stream endpoint via Python bridge ──
+router.get('/music/stream/:videoId', async (req, res, next) => {
+  const { videoId } = req.params;
+  const cacheKey = `ytmusic:${videoId}`;
+
+  if (urlCache.has(cacheKey)) {
+    console.log(`[YTMusic Cache Hit] ${cacheKey}`);
+    return res.json({ url: urlCache.get(cacheKey) });
+  }
+
+  try {
+    const { exec } = await import('child_process');
+    
+    // Call Python script to extract direct audio URL using yt-dlp
+    const pythonScript = `
+import yt_dlp
+import sys
+try:
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'quiet': True,
+        'no_warnings': True,
+        'simulate': True,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info('https://www.youtube.com/watch?v=${videoId}', download=False)
+        url = info.get('url', '')
+        print(url)
+except Exception as e:
+    print('ERROR:', e, file=sys.stderr)
+    sys.exit(1)
+`;
+
+    const result = await new Promise((resolve, reject) => {
+      exec(`python3 -c "${pythonScript.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
+        if (error) {
+          console.error('[yt-dlp error]', stderr || error.message);
+          reject(error);
+        } else {
+          resolve(stdout.trim());
+        }
+      });
+    });
+
+    if (result && result.startsWith('http')) {
+      urlCache.set(cacheKey, result);
+      return res.json({ url: result });
+    }
+    throw new Error('Failed to extract valid audio URL');
+  } catch (error) {
+    console.warn(`[/api/music/stream] Python bridge failed: ${error.message}, falling back to ytdl-core`);
+    // Fallback to ytdl-core
+    try {
+      const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      const info = await ytdl.getInfo(videoUrl);
+      const format = ytdl.chooseFormat(info.formats, { 
+        filter: 'audioonly', 
+        quality: 'highestaudio' 
+      });
+      if (format && format.url) {
+        urlCache.set(cacheKey, format.url);
+        return res.json({ url: format.url });
+      }
+    } catch (ytdlErr) {
+      console.error('ytdl-core fallback failed:', ytdlErr.message);
+    }
+
+    // Fallback to Cobalt
+    const cobaltInstances = [
+      'https://dog.kittycat.boo',
+      'https://cobaltapi.kittycat.boo',
+      'https://api.cobalt.liubquanti.click'
+    ];
+    for (const inst of cobaltInstances) {
+      try {
+        const response = await axios.post(inst, {
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          downloadMode: 'audio'
+        }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          timeout: 8000
+        });
+        const data = response.data;
+        if (data && data.url && (data.status === 'stream' || data.status === 'tunnel' || data.status === 'redirect')) {
+          urlCache.set(cacheKey, data.url);
+          return res.json({ url: data.url });
+        }
+      } catch (_) {}
+    }
+
+    res.status(500).json({ success: false, error: 'All extraction methods failed' });
+  }
+});
+
 export default router;
