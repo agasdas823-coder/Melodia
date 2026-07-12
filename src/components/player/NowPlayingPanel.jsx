@@ -1,10 +1,11 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePlayer } from "../../context/PlayerContext";
 import {
   Heart, Share2, Play, Pause,
   SkipBack, SkipForward, Shuffle, Repeat, ArrowLeft, Check,
 } from "lucide-react";
 import AddToPlaylistDropdown from "../playlist/AddToPlaylistDropdown";
+import SourceBadge from "./SourceBadge";
 
 export default function NowPlayingPanel({ isOpen, onClose }) {
   const {
@@ -26,6 +27,7 @@ export default function NowPlayingPanel({ isOpen, onClose }) {
     toggleLoop,
     previewTrack,
     setPreviewTrack,
+    activeSource,
   } = usePlayer();
 
   const panelRef = useRef(null);
@@ -140,8 +142,11 @@ export default function NowPlayingPanel({ isOpen, onClose }) {
                     transitionDelay: isOpen ? "0.2s" : "0s",
                   }}
                 >
-                  <div className="inline-block text-xs font-semibold tracking-widest text-violet-400 uppercase mb-3 bg-violet-900/30 px-3 py-1 rounded-full">
-                    {displayTrack.genre || "Music"}
+                  <div className="flex items-center gap-2 justify-center sm:justify-start mb-3">
+                    <div className="inline-block text-xs font-semibold tracking-widest text-violet-400 uppercase bg-violet-900/30 px-3 py-1 rounded-full">
+                      {displayTrack.genre || "Music"}
+                    </div>
+                    <SourceBadge source={activeSource} />
                   </div>
                   <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight mb-2 truncate">
                     {displayTrack.title}

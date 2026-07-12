@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { AudioBridge } from '../utils/AudioBridge';
-import { musicSourceManager, resolveTrack } from '../utils/MusicSourceManager';
 
 
 const PlayerContext = createContext();
@@ -281,9 +280,8 @@ export function PlayerProvider({ children }) {
             const q = queueRef.current;
             const ci = currentIndexRef.current;
             const nextSongs = q.slice(ci + 1, ci + 4);
-            if (nextSongs.length > 0) {
-              musicSourceManager.prefetchBatch(nextSongs).catch(() => {});
-            }
+            const b = getBridge();
+            nextSongs.forEach(s => b.prefetch(s));
           }
         },
         onLoad: (durationSecs) => setDuration(durationSecs),
@@ -293,26 +291,18 @@ export function PlayerProvider({ children }) {
             const trackId = currentTrackRef.current.id;
             if (!retriedTracksRef.current[trackId]) {
               retriedTracksRef.current[trackId] = true;
-              console.log(`[PlayerContext] Audio load error. Evicting stale URL from cache and retrying track: ${currentTrackRef.current.title}`);
-              musicSourceManager.deleteFromCache(trackId).then(() => {
-                const targetTrack = currentTrackRef.current;
-                if (!targetTrack) return;
-                resolveTrack(targetTrack).then((resolved) => {
-                  if (currentTrackRef.current?.id === targetTrack.id) {
-                    setActiveSource(resolved.source);
-                    const bridge = getBridge();
-                    bridge.playUrl(resolved.url, targetTrack);
-                  }
-                }).catch((retryErr) => {
-                  console.error('[PlayerContext] Retry failed to resolve track:', retryErr);
-                  if (targetTrack.previewUrl) {
-                    console.log('⚠️ Using preview URL as fallback');
-                    setActiveSource('fallback');
-                    const bridge = getBridge();
-                    bridge.playUrl(targetTrack.previewUrl, targetTrack);
-                  }
-                });
-              });
+              console.log(`[PlayerContext] Audio load error. Retrying track: ${currentTrackRef.current.title}`);
+              // Retry by reloading from the proxy endpoint
+              const targetTrack = currentTrackRef.current;
+              if (targetTrack) {
+                const b = getBridge();
+                b.play(targetTrack);
+              }
+            } else if (currentTrackRef.current.previewUrl) {
+              console.log('⚠️ Using preview URL as fallback');
+              setActiveSource('fallback');
+              const b = getBridge();
+              b.playUrl(currentTrackRef.current.previewUrl, currentTrackRef.current);
             }
           }
         },
@@ -406,39 +396,24 @@ export function PlayerProvider({ children }) {
 
     const bridge = getBridge();
     bridge.unload(); // Stop current playback immediately to avoid overlap
-    
-    // Fire non-blocking prefetch for next 3 songs immediately
-    const nextSongsForPrefetch = targetQueue.slice(targetIndex + 1, targetIndex + 4);
-    if (nextSongsForPrefetch.length > 0) {
-      void musicSourceManager.prefetchBatch(nextSongsForPrefetch);
+
+    // Check if this is a Spotify track with a preview URL
+    const previewUrl = track.previewUrl || track.preview_url;
+    if (previewUrl) {
+      setActiveSource('spotify');
+      bridge.playUrl(previewUrl, track);
+    } else {
+      // Use AudioBridge.play() directly — it constructs the /api/music/stream/:id
+      // proxy URL which streams audio bytes through our backend, bypassing CORS.
+      // MusicSourceManager's resolveTrack() was fetching raw CDN URLs that get
+      // blocked by CORS when played directly in the browser.
+      setActiveSource('youtube');
+      bridge.play(track);
     }
 
-    // Resolve via MusicSourceManager
-    resolveTrack(track).then((resolved) => {
-      setActiveSource(resolved.source);
-      bridge.playUrl(resolved.url, track);
-      
-      // Cache lyrics if returned (preview might not have lyrics, but we keep it safe)
-      if (resolved.lyrics) {
-        setLyricsCache(prev => ({ ...prev, [track.id]: resolved.lyrics.trim() }));
-      }
-
-      // Pre-fetch the next 5 songs in the queue in the background
-      const nextSongs = targetQueue.slice(targetIndex + 1, targetIndex + 6);
-      if (nextSongs.length > 0) {
-        console.log(`[PlayerContext] Song started. Pre-fetching next ${nextSongs.length} songs in queue in the background.`);
-        musicSourceManager.prefetchBatch(nextSongs).catch(() => {});
-      }
-    }).catch((err) => {
-      console.error('[PlayerContext] Failed to play track:', err);
-      // Fallback: If YouTube fails, use iTunes preview URL (30 seconds)
-      if (track.previewUrl) {
-        console.log('⚠️ Using preview URL as fallback');
-        setActiveSource('fallback');
-        const bridge = getBridge();
-        bridge.playUrl(track.previewUrl, track);
-      }
-    });
+    // Pre-fetch next songs in the queue for AudioBridge (preloads Howler instances)
+    const nextSongs = targetQueue.slice(targetIndex + 1, targetIndex + 4);
+    nextSongs.forEach(s => bridge.prefetch(s));
   }, [queue, getBridge]);
 
   const togglePlay = useCallback(() => {
@@ -475,25 +450,14 @@ export function PlayerProvider({ children }) {
           setCurrentTrack(next);
           setProgress(0);
           setDuration(next.duration || 0);
-          setActiveSource(null); // Reset source during loading
-          
-          // Fire non-blocking prefetch for next 3 songs immediately
+          // Fire non-blocking prefetch for next 3 songs
           const upcomingSongs = q.slice(nextIdx + 1, nextIdx + 4);
-          if (upcomingSongs.length > 0) {
-            void musicSourceManager.prefetchBatch(upcomingSongs);
-          }
-
           const bridge = getBridge();
+          upcomingSongs.forEach(s => bridge.prefetch(s));
+
           bridge.unload(); // Stop current playback immediately
-          resolveTrack(next).then((resolved) => {
-            setActiveSource(resolved.source);
-            bridge.playUrl(resolved.url, next);
-            if (resolved.lyrics) {
-              setLyricsCache(prev => ({ ...prev, [next.id]: resolved.lyrics.trim() }));
-            }
-          }).catch((err) => {
-            console.error('[PlayerContext] Failed to play next track:', err);
-          });
+          setActiveSource('youtube');
+          bridge.play(next);
         }
         return nextIdx;
       });
@@ -517,23 +481,14 @@ export function PlayerProvider({ children }) {
           setDuration(prev.duration || 0);
           setActiveSource(null); // Reset source during loading
 
-          // Fire non-blocking prefetch for next 3 songs immediately
+          // Fire non-blocking prefetch for next 3 songs
           const upcomingSongs = q.slice(prevIdx + 1, prevIdx + 4);
-          if (upcomingSongs.length > 0) {
-            void musicSourceManager.prefetchBatch(upcomingSongs);
-          }
-
           const bridge = getBridge();
+          upcomingSongs.forEach(s => bridge.prefetch(s));
+
           bridge.unload(); // Stop current playback immediately
-          resolveTrack(prev).then((resolved) => {
-            setActiveSource(resolved.source);
-            bridge.playUrl(resolved.url, prev);
-            if (resolved.lyrics) {
-              setLyricsCache(cache => ({ ...cache, [prev.id]: resolved.lyrics.trim() }));
-            }
-          }).catch((err) => {
-            console.error('[PlayerContext] Failed to play prev track:', err);
-          });
+          setActiveSource('youtube');
+          bridge.play(prev);
         }
         return prevIdx;
       });

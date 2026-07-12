@@ -4,7 +4,7 @@ import { usePlayer } from "../context/PlayerContext";
 import { Search as SearchIcon, X, Play, Pause, Music, Heart, Plus } from "lucide-react";
 import AddToPlaylistDropdown from "../components/playlist/AddToPlaylistDropdown";
 import { API_URL } from "../utils/config";
-import { musicSourceManager } from "../utils/MusicSourceManager";
+
 
 const POPULAR_SEARCHES = [
   "Michael Jackson",
@@ -57,9 +57,9 @@ export default function Search() {
       // Pre-cache first 10 results in the background (non-blocking)
       if (data.songs && data.songs.length > 0) {
         const tracksToCache = data.songs.filter(s => s.type !== 'playlist').slice(0, 10);
-        Promise.allSettled(tracksToCache.map(track => musicSourceManager.prefetch(track)))
-          .then((res) => console.log(`[Search] Background prefetch complete for ${res.length} songs`))
-          .catch(() => {});
+        tracksToCache.forEach(track => {
+          try { prefetchTrack(track); } catch (e) {}
+        });
       }
       
       // Update recent searches

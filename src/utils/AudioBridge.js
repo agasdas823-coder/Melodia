@@ -25,14 +25,19 @@ export class AudioBridge {
     if (this.currentTrackId === track.id) return;
 
     try {
-      const streamUrl = `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+      // iTunes/Spotify tracks: use preview_url directly
+      const previewUrl = track.previewUrl || track.preview_url;
+      const streamUrl = previewUrl
+        ? previewUrl
+        : `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+      const formats = previewUrl ? ['m4a', 'mp3', 'aac'] : ['mp4', 'm4a', 'webm'];
       
       const howl = new Howl({
         src: [streamUrl],
         html5: true,
         preload: 'metadata',
         volume: this.volume,
-        format: ['mp4', 'm4a', 'webm']
+        format: formats
       });
 
       this.prefetchCache[track.id] = howl;
@@ -73,6 +78,7 @@ export class AudioBridge {
         },
         onloaderror: (id, err) => {
           console.error("Howler load error", err);
+          if (this.onErrorCallback) this.onErrorCallback('load', err);
         },
         onplayerror: (id, err) => {
           console.error("Howler play error", err);
@@ -211,14 +217,19 @@ export class AudioBridge {
           this.onLoadCallback(this.howl.duration());
         }
       } else {
-        const streamUrl = `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+        // iTunes/Spotify tracks: use preview_url directly
+        const previewUrl = track.previewUrl || track.preview_url;
+        const streamUrl = previewUrl
+          ? previewUrl
+          : `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+        const formats = previewUrl ? ['m4a', 'mp3', 'aac'] : ['mp4', 'm4a', 'webm'];
 
         this.howl = new Howl({
           src: [streamUrl],
           html5: true, // Force HTML5 Audio to stream the file instead of downloading entirely
           preload: 'metadata',
           volume: this.volume,
-          format: ['mp4', 'm4a', 'webm'],
+          format: formats,
           onplay: () => {
             if (this.onPlayCallback) this.onPlayCallback();
             this.startProgress();
@@ -238,6 +249,7 @@ export class AudioBridge {
           },
           onloaderror: (id, err) => {
             console.error("Howler load error", err);
+            if (this.onErrorCallback) this.onErrorCallback('load', err);
           },
           onplayerror: (id, err) => {
             console.error("Howler play error", err);

@@ -36,13 +36,7 @@ export default function PlaylistDetail() {
 
   const playlistSongs = playlist.songs || [];
 
-  useEffect(() => {
-    if (playlistSongs.length > 0) {
-      import('../utils/MusicSourceManager').then(({ musicSourceManager }) => {
-        musicSourceManager.prefetchBatch(playlistSongs).catch(() => {});
-      });
-    }
-  }, [playlist.id]);
+
 
   const handleRowClick = (song) => {
     const isCurrent = currentTrack && (currentTrack.id === song.id || currentTrack._id === song._id);

@@ -10,6 +10,7 @@ export default function SourceBadge({ source }) {
   const configs = {
     jiosaavn: { label: 'JioSaavn', color: '#1DB954' },
     youtube:  { label: 'YouTube',  color: '#FF0000' },
+    spotify:  { label: '⏱️ Preview', color: '#1DB954' },
   };
 
   const config = configs[source];

@@ -7,6 +7,7 @@ import LyricsModal from "../player/LyricsModal";
 import NowPlayingPanel from "../player/NowPlayingPanel";
 import AddToPlaylistDropdown from "../playlist/AddToPlaylistDropdown";
 import PlaylistCover from "../playlist/PlaylistCover";
+import SourceBadge from "../player/SourceBadge";
 import {
   Home,
   Search as SearchIcon,
@@ -332,7 +333,10 @@ export default function AppLayout() {
                 className="w-10 h-10 rounded-lg object-cover shrink-0 bg-muted border border-white/5"
               />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-white truncate">{currentTrack.title}</p>
+                <div className="flex items-center gap-2 min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{currentTrack.title}</p>
+                  <SourceBadge source={activeSource} />
+                </div>
                 <p className="text-xs text-muted-foreground truncate">{currentTrack.artist}</p>
               </div>
             </div>

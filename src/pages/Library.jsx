@@ -15,13 +15,7 @@ export default function Library() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
 
-  useEffect(() => {
-    if (likedSongs.length > 0) {
-      import('../utils/MusicSourceManager').then(({ musicSourceManager }) => {
-        musicSourceManager.prefetchBatch(likedSongs).catch(() => {});
-      });
-    }
-  }, [likedSongs.length]);
+
 
   const handleManualCreate = () => {
     if (!newPlaylistName.trim()) return;

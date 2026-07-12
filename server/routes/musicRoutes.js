@@ -1,19 +1,34 @@
 import express from 'express';
 import YouTubeSR from 'youtube-sr';
 import ytSearch from 'yt-search';
-import ytdl from '@distube/ytdl-core';
+import { YtdlCore } from '@ybd-project/ytdl-core';
 import axios from 'axios';
 import NodeCache from 'node-cache';
+import * as spotify from '../spotify.js';
+
+const ytdl = new YtdlCore();
 // genius-lyrics removed — its default token was revoked by Genius, causing HTML responses.
 // We now use LRCLIB (free, open-source, no auth) + Lyrics.ovh as fallback.
 
 const router = express.Router();
 const YouTube = YouTubeSR.default ?? YouTubeSR;
+const ytSearchFn = ytSearch.default ?? ytSearch;
 
 const SEARCH_LIMIT = 20;
 
 // URL cache (24-hour TTL) for direct stream URLs
 const urlCache = new NodeCache({ stdTTL: 86400 });
+
+// ── GET /api/spotify/track/:id ───────────────────────────────────────────────
+router.get('/spotify/track/:id', async (req, res) => {
+  try {
+    const track = await spotify.getTrack(req.params.id);
+    if (!track) return res.status(404).json({ success: false, error: 'Track not found' });
+    return res.json({ success: true, track });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // Helper: convert milliseconds -> "m:ss"
 function fmtDurationMs(ms) {
@@ -38,6 +53,16 @@ router.get('/search', async (req, res, next) => {
   if (type === 'artist') attributeParam = '&attribute=artistTerm';
   else if (type === 'album') attributeParam = '&attribute=albumTerm';
   else if (type === 'song') attributeParam = '&attribute=songTerm';
+
+  if (process.env.USE_SPOTIFY === 'true' && (type === 'song' || type === 'all')) {
+    try {
+      const tracks = await spotify.searchTracks(q, limit);
+      return res.json({ success: true, count: tracks.length, songs: tracks });
+    } catch (err) {
+      console.error('Spotify search error:', err);
+      // Fallback to YouTube if Spotify fails
+    }
+  }
 
   try {
     if (type === 'playlist' || type === 'album') {
@@ -102,15 +127,19 @@ router.get('/search', async (req, res, next) => {
       const searchAndFilter = async (searchStr) => {
         let result = null;
         try {
-          result = await ytSearch(searchStr);
+          result = await YouTube.search(searchStr, { limit: limit + 10 }); // fetch more to account for filtering
         } catch (err) {
-          console.error('ytSearch error:', err);
+          console.error('YouTubeSR search error:', err);
         }
         
-        if (!result || !result.videos) return [];
-        return result.videos
+        if (!result || !Array.isArray(result)) return [];
+        console.log('Search returned videos:', result.length);
+        if (result.length > 0) {
+          console.log('First video:', result[0].title, result[0].duration);
+        }
+        return result
           .filter(v => {
-            const seconds = v.duration?.seconds || 0;
+            const seconds = (v.duration || 0) / 1000;
             if (seconds < 90) return false;
             if (seconds > 1200) return false; // Increased max duration to 20 mins to allow longer live tracks
             const title = (v.title || '').toLowerCase();
@@ -122,16 +151,16 @@ router.get('/search', async (req, res, next) => {
           })
           .slice(0, limit)
           .map((v) => {
-            const seconds = v.duration?.seconds || 0;
-            const thumbnail = v.thumbnail || '';
+            const seconds = (v.duration || 0) / 1000;
+            const thumbnail = v.thumbnail?.url || '';
             return {
-              id: v.videoId, _id: v.videoId, title: v.title, name: v.title,
-              artist: v.author?.name || 'YouTube', artists: [{ name: v.author?.name || 'YouTube' }],
+              id: v.id, _id: v.id, title: v.title, name: v.title,
+              artist: v.channel?.name || 'YouTube', artists: [{ name: v.channel?.name || 'YouTube' }],
               album: 'YouTube Single',
               thumbnail: thumbnail, thumbnail_medium: thumbnail, coverArtUrl: thumbnail,
-              duration: seconds, duration_ms: seconds * 1000,
-              duration_string: v.duration?.timestamp || fmtDurationMs(seconds * 1000),
-              views: v.views || '', url: v.url || `https://www.youtube.com/watch?v=${v.videoId}`,
+              duration: seconds, duration_ms: v.duration || 0,
+              duration_string: v.duration_formatted || fmtDurationMs(v.duration || 0),
+              views: v.views || '', url: v.url || `https://www.youtube.com/watch?v=${v.id}`,
               audioUrl: null, audio_url: null, previewUrl: null, preview_url: null, type: 'song'
             };
           });
@@ -460,10 +489,10 @@ router.get('/stream/:id', async (req, res, next) => {
 
     const videoUrl = `https://www.youtube.com/watch?v=${matchedVideo.id}`;
 
-    // ── Method 1: @distube/ytdl-core ──
+    // ── Method 1: @ybd-project/ytdl-core ──
     try {
-      const info = await ytdl.getInfo(videoUrl);
-      const format = ytdl.chooseFormat(info.formats, { filter: 'audioonly', quality: 'highestaudio' });
+      const info = await ytdl.getFullInfo(videoUrl);
+      const format = info.formats.find(f => f.hasAudio && f.audioBitrate);
       if (format && format.url) {
         urlCache.set(cacheKey, format.url);
         return res.json({ url: format.url });
@@ -663,13 +692,13 @@ router.get('/music/stream/:videoId', async (req, res, next) => {
     }
   }
 
-  // ── Step 3: @distube/ytdl-core fallback — pipe audio stream directly ──
+  // ── Step 3: @ybd-project/ytdl-core fallback — pipe audio stream directly ──
   try {
     console.log(`[YTMusic] Trying ytdl-core fallback: ${videoUrl}`);
     res.setHeader('Content-Type', 'audio/webm');
     res.setHeader('Accept-Ranges', 'bytes');
 
-    const stream = ytdl(videoUrl, {
+    const stream = await ytdl.download(videoUrl, {
       filter: 'audioonly',
       quality: 'highestaudio',
       highWaterMark: 1 << 25, // 32MB buffer

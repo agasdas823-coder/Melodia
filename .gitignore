@@ -33,3 +33,6 @@ dist-ssr
 # Scraper temporary scripts
 server/*-player-script.js
 *-player-script.js
+
+# Local Cobalt repo clone
+cobalt-local/

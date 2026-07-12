@@ -18,6 +18,42 @@ export class MusicSourceManager {
   async resolve(track) {
     if (!track) throw new Error('No track provided');
 
+    // SPOTIFY: If track has a preview URL, use it directly bypassing YouTube
+    const previewUrl = track.previewUrl || track.preview_url;
+    if (previewUrl) {
+      console.log(`[MusicSourceManager] Spotify preview hit for: ${track.title}`);
+      return {
+        id: track.id,
+        url: previewUrl,
+        title: track.title,
+        artist: track.artist || track.artists?.[0]?.name,
+        thumbnail: track.thumbnail || track.thumbnail_medium || track.coverArtUrl || null,
+        source: 'spotify',
+      };
+    }
+
+    // SPOTIFY: Fetch single track if missing preview URL
+    try {
+      if (track.id && typeof track.id === 'string' && track.id.length === 22) { // Spotify IDs are 22 chars
+        const res = await fetch(`${API_URL}/api/spotify/track/${track.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.track && data.track.preview_url) {
+            return {
+              id: track.id,
+              url: data.track.preview_url,
+              title: track.title,
+              artist: track.artist || track.artists?.[0]?.name,
+              thumbnail: track.thumbnail,
+              source: 'spotify'
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch spotify track direct info', e);
+    }
+
     // 1. Check IndexedDB (Tier 1 Cache)
     try {
       const idbCached = await cacheManager.getAudio(track.id);
