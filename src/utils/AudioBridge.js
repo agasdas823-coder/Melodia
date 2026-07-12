@@ -24,20 +24,19 @@ export class AudioBridge {
     // Do not prefetch if it's already the current playing track
     if (this.currentTrackId === track.id) return;
 
+    const previewUrl = track.previewUrl || track.preview_url;
+    if (!previewUrl) {
+      console.warn('[AudioBridge] Cannot prefetch: no preview URL available.');
+      return;
+    }
+
     try {
-      // iTunes/Spotify tracks: use preview_url directly
-      const previewUrl = track.previewUrl || track.preview_url;
-      const streamUrl = previewUrl
-        ? previewUrl
-        : `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
-      const formats = previewUrl ? ['m4a', 'mp3', 'aac'] : ['mp4', 'm4a', 'webm'];
-      
       const howl = new Howl({
-        src: [streamUrl],
+        src: [previewUrl],
         html5: true,
         preload: 'metadata',
         volume: this.volume,
-        format: formats
+        format: ['m4a', 'mp3', 'aac']
       });
 
       this.prefetchCache[track.id] = howl;
@@ -51,14 +50,18 @@ export class AudioBridge {
     this.unload();
     this.currentTrackId = track.id;
 
-    try {
-      const streamUrl = `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+    const previewUrl = track.previewUrl || track.preview_url;
+    if (!previewUrl) {
+      console.warn('[AudioBridge] Cannot load: no preview URL available.');
+      return;
+    }
 
+    try {
       this.howl = new Howl({
-        src: [streamUrl],
+        src: [previewUrl],
         html5: true,
         volume: this.volume,
-        format: ['mp4', 'm4a', 'webm'],
+        format: ['m4a', 'mp3', 'aac'],
         onplay: () => {
           if (this.onPlayCallback) this.onPlayCallback();
           this.startProgress();
@@ -217,19 +220,19 @@ export class AudioBridge {
           this.onLoadCallback(this.howl.duration());
         }
       } else {
-        // iTunes/Spotify tracks: use preview_url directly
         const previewUrl = track.previewUrl || track.preview_url;
-        const streamUrl = previewUrl
-          ? previewUrl
-          : `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
-        const formats = previewUrl ? ['m4a', 'mp3', 'aac'] : ['mp4', 'm4a', 'webm'];
+        if (!previewUrl) {
+          console.warn('[AudioBridge] Cannot play: no preview URL available.');
+          if (this.onErrorCallback) this.onErrorCallback('load', 'No preview URL available');
+          return;
+        }
 
         this.howl = new Howl({
-          src: [streamUrl],
+          src: [previewUrl],
           html5: true, // Force HTML5 Audio to stream the file instead of downloading entirely
           preload: 'metadata',
           volume: this.volume,
-          format: formats,
+          format: ['m4a', 'mp3', 'aac'],
           onplay: () => {
             if (this.onPlayCallback) this.onPlayCallback();
             this.startProgress();

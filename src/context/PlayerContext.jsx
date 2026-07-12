@@ -287,24 +287,7 @@ export function PlayerProvider({ children }) {
         onLoad: (durationSecs) => setDuration(durationSecs),
         onError: (type, err) => {
           console.error('[PlayerContext] AudioBridge error:', type, err);
-          if (type === 'load' && currentTrackRef.current) {
-            const trackId = currentTrackRef.current.id;
-            if (!retriedTracksRef.current[trackId]) {
-              retriedTracksRef.current[trackId] = true;
-              console.log(`[PlayerContext] Audio load error. Retrying track: ${currentTrackRef.current.title}`);
-              // Retry by reloading from the proxy endpoint
-              const targetTrack = currentTrackRef.current;
-              if (targetTrack) {
-                const b = getBridge();
-                b.play(targetTrack);
-              }
-            } else if (currentTrackRef.current.previewUrl) {
-              console.log('⚠️ Using preview URL as fallback');
-              setActiveSource('fallback');
-              const b = getBridge();
-              b.playUrl(currentTrackRef.current.previewUrl, currentTrackRef.current);
-            }
-          }
+          setIsPlaying(false);
         },
       });
     }
@@ -421,9 +404,8 @@ export function PlayerProvider({ children }) {
       setActiveSource('spotify');
       bridge.playUrl(previewUrl, track);
     } else {
-      // If we absolutely cannot resolve a preview URL, fall back to bridge.play(track)
-      setActiveSource('youtube');
-      bridge.play(track);
+      console.warn("[PlayerContext] Cannot play track - no preview URL available");
+      setIsPlaying(false);
     }
 
     // Pre-fetch next songs in the queue for AudioBridge (preloads Howler instances)
