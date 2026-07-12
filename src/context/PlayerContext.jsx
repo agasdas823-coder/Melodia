@@ -417,12 +417,11 @@ export function PlayerProvider({ children }) {
         setLyricsCache(prev => ({ ...prev, [track.id]: resolved.lyrics.trim() }));
       }
 
-      // Pre-fetch the next song in the queue in the background
-      const nextIndex = targetIndex + 1;
-      if (nextIndex < targetQueue.length) {
-        const nextSong = targetQueue[nextIndex];
-        console.log(`[PlayerContext] Song started. Pre-fetching next song in queue: ${nextSong.title}`);
-        musicSourceManager.prefetch(nextSong).catch(() => {});
+      // Pre-fetch the next 5 songs in the queue in the background
+      const nextSongs = targetQueue.slice(targetIndex + 1, targetIndex + 6);
+      if (nextSongs.length > 0) {
+        console.log(`[PlayerContext] Song started. Pre-fetching next ${nextSongs.length} songs in queue in the background.`);
+        musicSourceManager.prefetchBatch(nextSongs).catch(() => {});
       }
     }).catch((err) => {
       console.error('[PlayerContext] Failed to play track:', err);
