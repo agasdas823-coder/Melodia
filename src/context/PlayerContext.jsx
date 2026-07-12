@@ -236,13 +236,6 @@ export function PlayerProvider({ children }) {
     setPlaylists((prev) => prev.filter((pl) => pl.id !== playlistId));
   }, []);
 
-  const addToQueue = useCallback((song) => {
-    setQueue((prev) => {
-      if (prev.some((s) => s.id === song.id || s._id === song._id)) return prev;
-      try { prefetchTrack(song); } catch (e) {}
-      return [...prev, song];
-    });
-  }, [prefetchTrack]);
 
   const toggleShuffle = useCallback(() => {
     setIsShuffled((prev) => !prev);
@@ -312,6 +305,14 @@ export function PlayerProvider({ children }) {
         .catch(err => console.error("Prefetch lyrics error:", err));
     }
   }, [getBridge, lyricsCache]);
+
+  const addToQueue = useCallback((song) => {
+    setQueue((prev) => {
+      if (prev.some((s) => s.id === song.id || s._id === song._id)) return prev;
+      try { prefetchTrack(song); } catch (e) {}
+      return [...prev, song];
+    });
+  }, [prefetchTrack]);
 
 
   // Sync volume with AudioBridge
