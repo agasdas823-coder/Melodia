@@ -12,8 +12,8 @@ const YouTube = YouTubeSR.default ?? YouTubeSR;
 
 const SEARCH_LIMIT = 20;
 
-// URL cache (1-hour TTL) for direct stream URLs
-const urlCache = new NodeCache({ stdTTL: 3600 });
+// URL cache (24-hour TTL) for direct stream URLs
+const urlCache = new NodeCache({ stdTTL: 86400 });
 
 // Helper: convert milliseconds -> "m:ss"
 function fmtDurationMs(ms) {

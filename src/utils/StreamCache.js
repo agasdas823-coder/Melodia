@@ -1,7 +1,7 @@
-// StreamCache.js - localStorage cache for resolved stream URLs with 4-hour TTL
+// StreamCache.js - localStorage cache for resolved stream URLs with 24-hour TTL
 
 const CACHE_PREFIX = 'melodia_stream_cache_';
-const TTL = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
+const TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 export const StreamCache = {
   get(videoId) {

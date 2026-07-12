@@ -3,7 +3,7 @@ import { cacheManager } from './CacheManager';
 import { StreamCache } from './StreamCache';
 
 const CACHE_PREFIX = 'melodia_track_cache_';
-const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours (YouTube URLs expire quickly)
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours (YouTube/yt-dlp URLs cached longer)
 
 export class MusicSourceManager {
   /**
