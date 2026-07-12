@@ -13,88 +13,34 @@ export class MusicSourceManager {
   async resolve(track) {
     if (!track) throw new Error('No track provided');
 
-    // 0. Check StreamCache (Primary 4-hour Cache)
-    const cachedStreamUrl = StreamCache.get(track.id);
-    if (cachedStreamUrl) {
-      console.log(`[MusicSourceManager] StreamCache hit for: ${track.title}`);
-      return {
-        id: track.id,
-        url: cachedStreamUrl,
-        title: track.title || track.name || '',
-        artist: track.artist || track.artists?.[0]?.name || '',
-        thumbnail: track.thumbnail || track.thumbnail_medium || track.coverArtUrl || null,
-        source: 'youtube',
-      };
-    }
+    const title  = track.title  || track.name || '';
+    const artist = track.artist || track.artists?.[0]?.name || '';
+    const proxyUrl = `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
 
-    // 1. Check IndexedDB (Tier 1 Cache)
-    try {
-      const idbCached = await cacheManager.getAudio(track.id);
-      if (idbCached) {
-        if (Date.now() - idbCached.timestamp > CACHE_TTL_MS) {
-          console.log(`[MusicSourceManager] Cached YouTube URL expired, removing.`);
-          await cacheManager.removeAudio(track.id);
-        } else {
-          console.log(`[MusicSourceManager] IndexedDB hit for: ${track.title}`);
-          return idbCached;
-        }
-      }
-    } catch (e) {
-      console.warn(`[MusicSourceManager] IndexedDB read failed: ${e.message}`);
-    }
-
-    // 2. Check localStorage (Tier 2 Cache)
-    const lsCached = this.getLocalCached(track);
-    if (lsCached) {
-      console.log(`[MusicSourceManager] localStorage hit for: ${track.title}`);
-      this.saveToAllCaches(track, lsCached);
-      return lsCached;
-    }
-
-    // 3. Fetch YouTube Direct (Primary Source)
-    try {
-      console.log(`[MusicSourceManager] Fetching from YouTube for: ${track.title}`);
-      const ytResult = await this.fetchYouTube(track);
-      if (ytResult && ytResult.url) {
-        this.saveToAllCaches(track, ytResult);
-        return ytResult;
-      }
-    } catch (err) {
-      console.warn(`[MusicSourceManager] YouTube fetch failed for: ${track.title}`, err.message);
-    }
-
-    throw new Error('Unable to play this song');
+    return {
+      id: track.id,
+      url: proxyUrl,
+      title: title,
+      artist: artist,
+      thumbnail: track.thumbnail || track.thumbnail_medium || track.coverArtUrl || null,
+      source: 'youtube',
+    };
   }
 
   /**
-   * Prefetch a track in the background and cache it.
+   * Prefetch a track in the background to warm up the backend cache.
    */
   async prefetch(track) {
     if (!track || !track.id) return;
 
-    // 0. Check StreamCache (Primary 4-hour Cache)
-    if (StreamCache.get(track.id)) return;
-
     try {
-      const idbCached = await cacheManager.getAudio(track.id);
-      if (idbCached) {
-        if (Date.now() - idbCached.timestamp <= CACHE_TTL_MS) {
-          return; // Valid cache hit
-        }
-      }
+      const title  = track.title  || track.name || '';
+      const artist = track.artist || track.artists?.[0]?.name || '';
+      const warmUrl = `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`;
+      
+      // Perform a low-overhead Range fetch to trigger backend yt-dlp resolution and cache warming
+      fetch(warmUrl, { headers: { 'Range': 'bytes=0-0' } }).catch(() => {});
     } catch (e) {}
-
-    if (this.getLocalCached(track)) return;
-
-    try {
-      console.log(`[MusicSourceManager] Prefetching via YouTube: ${track.title}`);
-      const ytResult = await this.fetchYouTube(track);
-      if (ytResult && ytResult.url) {
-        this.saveToAllCaches(track, ytResult);
-      }
-    } catch (err) {
-      console.warn(`[MusicSourceManager] YouTube prefetch failed for: ${track.title}`, err.message);
-    }
   }
 
   /**

@@ -566,21 +566,22 @@ router.get('/lyrics', async (req, res, next) => {
   });
 });
 
-// ── GET /api/music/stream/:videoId — fast stream endpoint via Python bridge ──
+// ── GET /api/music/stream/:videoId — fast stream endpoint via Python bridge & Audio Proxy ──
 router.get('/music/stream/:videoId', async (req, res, next) => {
   const { videoId } = req.params;
   const cacheKey = `ytmusic:${videoId}`;
 
-  if (urlCache.has(cacheKey)) {
-    console.log(`[YTMusic Cache Hit] ${cacheKey}`);
-    return res.json({ url: urlCache.get(cacheKey) });
-  }
-
   try {
-    const { exec } = await import('child_process');
-    
-    // Call Python script to extract direct audio URL using yt-dlp
-    const pythonScript = `
+    let directUrl = null;
+
+    if (urlCache.has(cacheKey)) {
+      directUrl = urlCache.get(cacheKey);
+      console.log(`[YTMusic Cache Hit] ${cacheKey}`);
+    } else {
+      const { exec } = await import('child_process');
+      
+      // Call Python script to extract direct audio URL using yt-dlp
+      const pythonScript = `
 import yt_dlp
 import sys
 try:
@@ -599,41 +600,91 @@ except Exception as e:
     sys.exit(1)
 `;
 
-    const result = await new Promise((resolve, reject) => {
-      exec(`python3 -c "${pythonScript.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
-        if (error) {
-          console.error('[yt-dlp error]', stderr || error.message);
-          reject(error);
-        } else {
-          resolve(stdout.trim());
-        }
+      const result = await new Promise((resolve, reject) => {
+        exec(`python3 -c "${pythonScript.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
+          if (error) {
+            console.error('[yt-dlp error]', stderr || error.message);
+            reject(error);
+          } else {
+            resolve(stdout.trim());
+          }
+        });
       });
+
+      if (result && result.startsWith('http')) {
+        directUrl = result;
+        urlCache.set(cacheKey, result);
+      } else {
+        throw new Error('Failed to extract valid audio URL via yt-dlp');
+      }
+    }
+
+    // Now proxy the stream directly to bypass YouTube's IP lock
+    console.log(`[Proxy] Streaming videoId: ${videoId}`);
+
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    };
+
+    if (req.headers.range) {
+      headers['Range'] = req.headers.range;
+    }
+
+    const response = await axios({
+      method: 'get',
+      url: directUrl,
+      responseType: 'stream',
+      headers: headers,
+      timeout: 15000
     });
 
-    if (result && result.startsWith('http')) {
-      urlCache.set(cacheKey, result);
-      return res.json({ url: result });
+    // Copy status and headers from target response to client response
+    res.status(response.status);
+    
+    const responseHeaders = [
+      'content-type',
+      'content-length',
+      'content-range',
+      'accept-ranges',
+      'cache-control'
+    ];
+    
+    responseHeaders.forEach(h => {
+      if (response.headers[h]) {
+        res.setHeader(h, response.headers[h]);
+      }
+    });
+
+    if (!res.getHeader('content-type')) {
+      res.setHeader('Content-Type', 'audio/webm');
     }
-    throw new Error('Failed to extract valid audio URL');
+
+    response.data.pipe(res);
+
   } catch (error) {
-    console.warn(`[/api/music/stream] Python bridge failed: ${error.message}, falling back to ytdl-core`);
-    // Fallback to ytdl-core
+    console.warn(`[/api/music/stream] Proxy failed: ${error.message}, trying fallback`);
+
+    // Fallback to ytdl-core direct stream piping
     try {
       const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-      const info = await ytdl.getInfo(videoUrl);
-      const format = ytdl.chooseFormat(info.formats, { 
-        filter: 'audioonly', 
-        quality: 'highestaudio' 
+      res.setHeader('Content-Type', 'audio/webm');
+      
+      const stream = ytdl(videoUrl, {
+        filter: 'audioonly',
+        quality: 'highestaudio',
+        highWaterMark: 1 << 25 // 32MB buffer
       });
-      if (format && format.url) {
-        urlCache.set(cacheKey, format.url);
-        return res.json({ url: format.url });
-      }
+
+      stream.on('error', (err) => {
+        console.error('ytdl-core stream error:', err.message);
+      });
+
+      return stream.pipe(res);
     } catch (ytdlErr) {
       console.error('ytdl-core fallback failed:', ytdlErr.message);
     }
 
-    // Fallback to Cobalt
+    // Secondary fallback: Redirect to a working Cobalt instance
     const cobaltInstances = [
       'https://dog.kittycat.boo',
       'https://cobaltapi.kittycat.boo',
@@ -649,17 +700,19 @@ except Exception as e:
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          timeout: 8000
+          timeout: 6000
         });
         const data = response.data;
         if (data && data.url && (data.status === 'stream' || data.status === 'tunnel' || data.status === 'redirect')) {
-          urlCache.set(cacheKey, data.url);
-          return res.json({ url: data.url });
+          console.log(`[Proxy Fallback] Redirecting to Cobalt: ${inst}`);
+          return res.redirect(data.url);
         }
       } catch (_) {}
     }
 
-    res.status(500).json({ success: false, error: 'All extraction methods failed' });
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'All streaming methods failed' });
+    }
   }
 });
 

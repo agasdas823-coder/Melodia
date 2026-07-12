@@ -1,0 +1,55 @@
+# API
+
+
+# cobalt.directory
+- [Instance List](https://cobalt.directory/)
+- [Search By Service](https://cobalt.directory/service)
+- [API](https://cobalt.directory/api)
+- [About](https://cobalt.directory/about)
+- [FAQ](https://cobalt.directory/faq)
+- [Source](https://codeberg.org/hyperdefined/cobalt.directory)
+[Instance List](https://cobalt.directory/)
+[Search By Service](https://cobalt.directory/service)
+[API](https://cobalt.directory/api)
+[About](https://cobalt.directory/about)
+[FAQ](https://cobalt.directory/faq)
+[Source](https://codeberg.org/hyperdefined/cobalt.directory)
+
+## API
+cobalt.directory has a public API. You can use this to query the instances and the service results.
+Each API endpoint follows the same structure. They all have lastUpdatedUTC to show when it was last updated. All data in the endpoint is in the data key.
+
+```
+lastUpdatedUTC
+```
+
+
+```
+data
+```
+
+
+### Tests Results
+
+```
+https://cobalt.directory/api/tests
+```
+
+This endpoint lists all instances and what tests we ran for each one. In each test, it shows what the result was.
+You can use this to query all instances at once to see their tests and data.
+
+### "Working" Instances
+This endpoint shows which instances work for what service, but in a simpler way. You can query to show the APIs or frontends in the list.
+
+```
+https://cobalt.directory/api/working?type=frontends
+```
+
+
+```
+https://cobalt.directory/api/working?type=api
+```
+
+This site is not official or related to [imput.net](https://imput.net/) (the creators of cobalt).
+This site was build with love, care, and fluff! Created and managed by [hyperdefined](https://hyper.lol).
+This site and project is licensed under [MIT](https://codeberg.org/hyperdefined/cobalt.directory/src/branch/master/LICENSE).
