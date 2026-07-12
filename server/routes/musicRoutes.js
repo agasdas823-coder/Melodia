@@ -54,13 +54,16 @@ router.get('/search', async (req, res, next) => {
   else if (type === 'album') attributeParam = '&attribute=albumTerm';
   else if (type === 'song') attributeParam = '&attribute=songTerm';
 
-  if (process.env.USE_SPOTIFY === 'true' && (type === 'song' || type === 'all')) {
+  if (process.env.USE_SPOTIFY === 'true') {
     try {
+      if (type === 'playlist') {
+        return res.json({ success: true, count: 0, songs: [] });
+      }
       const tracks = await spotify.searchTracks(q, limit);
       return res.json({ success: true, count: tracks.length, songs: tracks });
     } catch (err) {
-      console.error('Spotify search error:', err);
-      // Fallback to YouTube if Spotify fails
+      console.error('Spotify/iTunes search error:', err);
+      return res.json({ success: true, count: 0, songs: [] });
     }
   }
 

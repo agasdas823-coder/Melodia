@@ -239,10 +239,10 @@ export function PlayerProvider({ children }) {
   const addToQueue = useCallback((song) => {
     setQueue((prev) => {
       if (prev.some((s) => s.id === song.id || s._id === song._id)) return prev;
-      musicSourceManager.prefetch(song);
+      try { prefetchTrack(song); } catch (e) {}
       return [...prev, song];
     });
-  }, []);
+  }, [prefetchTrack]);
 
   const toggleShuffle = useCallback(() => {
     setIsShuffled((prev) => !prev);
@@ -364,7 +364,7 @@ export function PlayerProvider({ children }) {
   }, [getBridge]);
 
   // PlayTrack implementation using AudioBridge + MusicSourceManager dual-layer
-  const playTrack = useCallback((track, newQueue = []) => {
+  const playTrack = useCallback(async (track, newQueue = []) => {
     if (track && track.id) {
       delete retriedTracksRef.current[track.id];
     }
@@ -397,16 +397,31 @@ export function PlayerProvider({ children }) {
     const bridge = getBridge();
     bridge.unload(); // Stop current playback immediately to avoid overlap
 
-    // Check if this is a Spotify track with a preview URL
-    const previewUrl = track.previewUrl || track.preview_url;
+    // Check if this is a Spotify/iTunes track with a preview URL
+    let previewUrl = track.previewUrl || track.preview_url;
+
+    if (!previewUrl) {
+      try {
+        const query = `${track.title || track.name} ${track.artist || track.artists?.[0]?.name || ''}`;
+        const searchRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=${encodeURIComponent(query)}&limit=1`);
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          if (searchData.songs && searchData.songs.length > 0) {
+            previewUrl = searchData.songs[0].previewUrl || searchData.songs[0].preview_url;
+            track.previewUrl = previewUrl;
+            track.preview_url = previewUrl;
+          }
+        }
+      } catch (e) {
+        console.error("[PlayerContext] Failed to resolve previewUrl:", e);
+      }
+    }
+
     if (previewUrl) {
       setActiveSource('spotify');
       bridge.playUrl(previewUrl, track);
     } else {
-      // Use AudioBridge.play() directly — it constructs the /api/music/stream/:id
-      // proxy URL which streams audio bytes through our backend, bypassing CORS.
-      // MusicSourceManager's resolveTrack() was fetching raw CDN URLs that get
-      // blocked by CORS when played directly in the browser.
+      // If we absolutely cannot resolve a preview URL, fall back to bridge.play(track)
       setActiveSource('youtube');
       bridge.play(track);
     }
