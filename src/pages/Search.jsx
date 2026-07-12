@@ -54,10 +54,12 @@ export default function Search() {
       const data = await response.json();
       setResults(data.songs || []);
       
-      // Pre-cache first 3 results (sequential batches to avoid overwhelming backend)
+      // Pre-cache first 10 results in the background (non-blocking)
       if (data.songs && data.songs.length > 0) {
-        const tracksToCache = data.songs.filter(s => s.type !== 'playlist').slice(0, 3);
-        musicSourceManager.prefetchBatch(tracksToCache).catch(() => {});
+        const tracksToCache = data.songs.filter(s => s.type !== 'playlist').slice(0, 10);
+        Promise.allSettled(tracksToCache.map(track => musicSourceManager.prefetch(track)))
+          .then((res) => console.log(`[Search] Background prefetch complete for ${res.length} songs`))
+          .catch(() => {});
       }
       
       // Update recent searches

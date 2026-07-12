@@ -3,7 +3,7 @@ import { cacheManager } from './CacheManager';
 import { StreamCache } from './StreamCache';
 
 const CACHE_PREFIX = 'melodia_track_cache_';
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours (YouTube URLs expire)
+const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours (YouTube URLs expire quickly)
 
 export class MusicSourceManager {
   /**
@@ -218,10 +218,23 @@ export class MusicSourceManager {
       await cacheManager.clearCache();
     } catch {}
   }
+
+  async deleteFromCache(trackId) {
+    if (!trackId) return;
+    try {
+      localStorage.removeItem(`melodia_stream_cache_${trackId}`);
+      localStorage.removeItem(`${CACHE_PREFIX}${trackId}`);
+      await cacheManager.removeAudio(trackId);
+      console.log(`[MusicSourceManager] Evicted track from cache: ${trackId}`);
+    } catch (e) {
+      console.warn(`[MusicSourceManager] Failed to evict track from cache: ${trackId}`, e);
+    }
+  }
 }
 
 // Export singleton
 export const musicSourceManager = new MusicSourceManager();
+export const deleteTrackCache = (trackId) => musicSourceManager.deleteFromCache(trackId);
 
 // Backward compatibility
 export const resolveTrack = (track) => musicSourceManager.resolve(track);

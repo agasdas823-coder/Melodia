@@ -62,8 +62,11 @@ export function PlayerProvider({ children }) {
   const currentIndexRef = useRef(currentIndex);
   const durationRef = useRef(duration);
   const prefetchTriggeredRef = useRef(false);
+  const currentTrackRef = useRef(null);
+  const retriedTracksRef = useRef({});
 
   useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { currentTrackRef.current = currentTrack; }, [currentTrack]);
   useEffect(() => { 
     currentIndexRef.current = currentIndex; 
     prefetchTriggeredRef.current = false; 
@@ -284,7 +287,29 @@ export function PlayerProvider({ children }) {
           }
         },
         onLoad: (durationSecs) => setDuration(durationSecs),
-        onError: (type, err) => console.error('[PlayerContext] AudioBridge error:', type, err),
+        onError: (type, err) => {
+          console.error('[PlayerContext] AudioBridge error:', type, err);
+          if (type === 'load' && currentTrackRef.current) {
+            const trackId = currentTrackRef.current.id;
+            if (!retriedTracksRef.current[trackId]) {
+              retriedTracksRef.current[trackId] = true;
+              console.log(`[PlayerContext] Audio load error. Evicting stale URL from cache and retrying track: ${currentTrackRef.current.title}`);
+              musicSourceManager.deleteFromCache(trackId).then(() => {
+                const targetTrack = currentTrackRef.current;
+                if (!targetTrack) return;
+                resolveTrack(targetTrack).then((resolved) => {
+                  if (currentTrackRef.current?.id === targetTrack.id) {
+                    setActiveSource(resolved.source);
+                    const bridge = getBridge();
+                    bridge.playUrl(resolved.url, targetTrack);
+                  }
+                }).catch((retryErr) => {
+                  console.error('[PlayerContext] Retry failed to resolve track:', retryErr);
+                });
+              });
+            }
+          }
+        },
       });
     }
     return bridgeRef.current;
@@ -344,6 +369,9 @@ export function PlayerProvider({ children }) {
 
   // PlayTrack implementation using AudioBridge + MusicSourceManager dual-layer
   const playTrack = useCallback((track, newQueue = []) => {
+    if (track && track.id) {
+      delete retriedTracksRef.current[track.id];
+    }
     let targetQueue = queue;
     let targetIndex = 0;
 
@@ -387,6 +415,14 @@ export function PlayerProvider({ children }) {
       // Cache lyrics if returned (preview might not have lyrics, but we keep it safe)
       if (resolved.lyrics) {
         setLyricsCache(prev => ({ ...prev, [track.id]: resolved.lyrics.trim() }));
+      }
+
+      // Pre-fetch the next song in the queue in the background
+      const nextIndex = targetIndex + 1;
+      if (nextIndex < targetQueue.length) {
+        const nextSong = targetQueue[nextIndex];
+        console.log(`[PlayerContext] Song started. Pre-fetching next song in queue: ${nextSong.title}`);
+        musicSourceManager.prefetch(nextSong).catch(() => {});
       }
     }).catch((err) => {
       console.error('[PlayerContext] Failed to play track:', err);
