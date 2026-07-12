@@ -4,5 +4,5 @@ nixPkgs = ["nodejs", "python3", "ffmpeg"]
 [phases.build]
 cmds = ["npm install", "cd server && npm install"]
 
-[start]
+[phases.start]
 cmd = "node server/server.js"
