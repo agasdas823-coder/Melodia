@@ -1,5 +1,6 @@
 import { API_URL } from './config';
 import { cacheManager } from './CacheManager';
+import { StreamCache } from './StreamCache';
 
 const CACHE_PREFIX = 'melodia_track_cache_';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours (YouTube URLs expire)
@@ -11,6 +12,20 @@ export class MusicSourceManager {
    */
   async resolve(track) {
     if (!track) throw new Error('No track provided');
+
+    // 0. Check StreamCache (Primary 4-hour Cache)
+    const cachedStreamUrl = StreamCache.get(track.id);
+    if (cachedStreamUrl) {
+      console.log(`[MusicSourceManager] StreamCache hit for: ${track.title}`);
+      return {
+        id: track.id,
+        url: cachedStreamUrl,
+        title: track.title || track.name || '',
+        artist: track.artist || track.artists?.[0]?.name || '',
+        thumbnail: track.thumbnail || track.thumbnail_medium || track.coverArtUrl || null,
+        source: 'youtube',
+      };
+    }
 
     // 1. Check IndexedDB (Tier 1 Cache)
     try {
@@ -57,6 +72,9 @@ export class MusicSourceManager {
   async prefetch(track) {
     if (!track || !track.id) return;
 
+    // 0. Check StreamCache (Primary 4-hour Cache)
+    if (StreamCache.get(track.id)) return;
+
     try {
       const idbCached = await cacheManager.getAudio(track.id);
       if (idbCached) {
@@ -97,41 +115,24 @@ export class MusicSourceManager {
     const title  = track.title  || track.name || '';
     const artist = track.artist || track.artists?.[0]?.name || '';
 
-    // ── Derive 6 title format variants ───────────────────────────────────────
-    const noFeat   = title.replace(/\bfeat\..*$/i, '').replace(/\bfeaturing\b.*$/i, '').trim();
-    const noParens = title.replace(/\([^)]*\)/g, '').trim();
-    const firstPart= title.split(/[,\-–(]/)[0].trim();          // up to first comma/dash/paren
-    const withAudio= `${title} audio`;
-    const artistFirstWord = artist.split(/\s+/)[0];
-    const firstWord = title.split(/\s+/)[0];
-
-    // Build ordered list of (title, artist) pairs to try
-    const rawAttempts = [
-      { title,                    artist },          // 1. Original
-      { title: noFeat,            artist },          // 2. Remove feat.
-      { title: noParens,          artist },          // 3. Remove parentheses
-      { title: firstPart,         artist },          // 4. Just first part
-      { title: withAudio,         artist },          // 5. Add "audio"
-      { title: firstWord,         artist },          // 6. Artist + first word
-      { title: `${artistFirstWord} ${firstWord}`, artist: '' }, // 6b. compact
-      { title,                    artist: '' },      // No-artist fallbacks
-      { title: noFeat,            artist: '' },
-      { title: noParens,          artist: '' },
-      { title: firstPart,         artist: '' },
+    // Try at most 2 variants — the backend handles fallback via Cobalt proxy
+    const attempts = [
+      { title, artist },
+      { title: title.replace(/\([^)]*\)/g, '').trim(), artist },
     ];
 
     // Deduplicate
-    const seenAttempts = new Set();
-    const uniqueAttempts = rawAttempts.filter(att => {
+    const seen = new Set();
+    const unique = attempts.filter(att => {
       const key = `${att.title.toLowerCase()}|${att.artist.toLowerCase()}`;
-      if (seenAttempts.has(key) || !att.title) return false;
-      seenAttempts.add(key);
+      if (seen.has(key) || !att.title) return false;
+      seen.add(key);
       return true;
     });
 
     let lastError = null;
-    for (let i = 0; i < uniqueAttempts.length; i++) {
-      const { title: t, artist: a } = uniqueAttempts[i];
+    for (let i = 0; i < unique.length; i++) {
+      const { title: t, artist: a } = unique[i];
       try {
         console.log(`[MusicSourceManager] YouTube attempt ${i + 1}: "${t}" by "${a}"`);
         const streamUrl = `${API_URL}/api/stream/${track.id}?title=${encodeURIComponent(t)}&artist=${encodeURIComponent(a)}`;
@@ -185,6 +186,10 @@ export class MusicSourceManager {
   }
 
   saveToAllCaches(track, result) {
+    if (track.id && result.url) {
+      StreamCache.set(track.id, result.url);
+    }
+
     cacheManager.saveAudio({
       ...result,
       id: track.id,
@@ -207,6 +212,7 @@ export class MusicSourceManager {
 
   async clearCache() {
     try {
+      StreamCache.clear();
       const keys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_PREFIX));
       keys.forEach(k => localStorage.removeItem(k));
       await cacheManager.clearCache();
