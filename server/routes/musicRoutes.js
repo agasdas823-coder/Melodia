@@ -54,7 +54,7 @@ router.get('/search', async (req, res, next) => {
   else if (type === 'album') attributeParam = '&attribute=albumTerm';
   else if (type === 'song') attributeParam = '&attribute=songTerm';
 
-  if (process.env.USE_SPOTIFY === 'true') {
+  if (process.env.USE_SPOTIFY !== 'false') {
     try {
       if (type === 'playlist') {
         return res.json({ success: true, count: 0, songs: [] });
