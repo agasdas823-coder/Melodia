@@ -12,7 +12,8 @@ export async function connectToDatabase() {
     throw new Error('MONGODB_URI is not defined in environment variables');
   }
 
-  const client = await MongoClient.connect(process.env.MONGODB_URI);
+  const client = new MongoClient(process.env.MONGODB_URI);
+  await client.connect();
   const db = client.db(); // Defaults to db name in connection string
 
   cachedClient = client;
