@@ -24,10 +24,16 @@ app.use('/api/auth', authRoutes);   // JWT register/login (no Spotify)
 app.use('/api', musicRoutes);        // /api/search, /api/stream/:id, /api/video/:id
 
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Health check endpoint for Railway/Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy', timestamp: new Date() });
+});
 
 // Serve static frontend files in production
 app.use(express.static(path.join(__dirname, '../dist')));
@@ -37,7 +43,11 @@ app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) {
     return next();
   }
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+  const indexPath = path.join(__dirname, '../dist/index.html');
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  res.status(200).send('Melodia API is running');
 });
 
 // Centralized error handler
