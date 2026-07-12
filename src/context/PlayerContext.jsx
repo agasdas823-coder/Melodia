@@ -305,6 +305,12 @@ export function PlayerProvider({ children }) {
                   }
                 }).catch((retryErr) => {
                   console.error('[PlayerContext] Retry failed to resolve track:', retryErr);
+                  if (targetTrack.previewUrl) {
+                    console.log('⚠️ Using preview URL as fallback');
+                    setActiveSource('fallback');
+                    const bridge = getBridge();
+                    bridge.playUrl(targetTrack.previewUrl, targetTrack);
+                  }
                 });
               });
             }
@@ -425,7 +431,13 @@ export function PlayerProvider({ children }) {
       }
     }).catch((err) => {
       console.error('[PlayerContext] Failed to play track:', err);
-      // Fallback already handled inside resolveTrack, so if it fails completely, we just stop.
+      // Fallback: If YouTube fails, use iTunes preview URL (30 seconds)
+      if (track.previewUrl) {
+        console.log('⚠️ Using preview URL as fallback');
+        setActiveSource('fallback');
+        const bridge = getBridge();
+        bridge.playUrl(track.previewUrl, track);
+      }
     });
   }, [queue, getBridge]);
 

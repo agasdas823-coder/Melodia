@@ -472,11 +472,18 @@ router.get('/stream/:id', async (req, res, next) => {
       console.warn(`[/api/stream] ytdl-core failed, attempting Cobalt fallback: ${ytdlErr.message}`);
     }
 
-    // ── Method 2: Cobalt Proxy Fallback ──
+    // ── Method 2: Cobalt Proxy Fallback (verified working for YouTube from cobalt.directory) ──
     const cobaltInstances = [
-      'https://dog.kittycat.boo',
+      'https://melon.clxxped.lol',
+      'https://cobalt.omega.wolfy.love',
+      'https://nuko-c.meowing.de',
       'https://cobaltapi.kittycat.boo',
-      'https://api.cobalt.liubquanti.click'
+      'https://cobalt.alpha.wolfy.love',
+      'https://cobaltapi.squair.xyz',
+      'https://api.cobalt.liubquanti.click',
+      'https://api-cobalt.eversiege.network',
+      'https://api.qwkuns.me',
+      'https://subito-c.meowing.de'
     ];
 
     for (const inst of cobaltInstances) {
@@ -566,153 +573,122 @@ router.get('/lyrics', async (req, res, next) => {
   });
 });
 
-// ── GET /api/music/stream/:videoId — fast stream endpoint via Python bridge & Audio Proxy ──
+// ── GET /api/music/stream/:videoId — stream audio via Cobalt (primary) + ytdl-core (fallback) ──
+// Cobalt instances are verified working for YouTube from cobalt.directory
 router.get('/music/stream/:videoId', async (req, res, next) => {
   const { videoId } = req.params;
+  const { title, artist } = req.query;
   const cacheKey = `ytmusic:${videoId}`;
 
-  try {
-    let directUrl = null;
+  // ── Step 0: Resolve videoUrl ──
+  let videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const isYoutubeId = videoId && videoId.length === 11 && /^[a-zA-Z0-9_-]{11}$/.test(videoId);
 
-    if (urlCache.has(cacheKey)) {
-      directUrl = urlCache.get(cacheKey);
-      console.log(`[YTMusic Cache Hit] ${cacheKey}`);
-    } else {
-      const { exec } = await import('child_process');
-      
-      // Call Python script to extract direct audio URL using yt-dlp
-      const pythonScript = `
-import yt_dlp
-import sys
-try:
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'quiet': True,
-        'no_warnings': True,
-        'simulate': True,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info('https://www.youtube.com/watch?v=${videoId}', download=False)
-        url = info.get('url', '')
-        print(url)
-except Exception as e:
-    print('ERROR:', e, file=sys.stderr)
-    sys.exit(1)
-`;
-
-      const result = await new Promise((resolve, reject) => {
-        exec(`python3 -c "${pythonScript.replace(/"/g, '\\"')}"`, (error, stdout, stderr) => {
-          if (error) {
-            console.error('[yt-dlp error]', stderr || error.message);
-            reject(error);
-          } else {
-            resolve(stdout.trim());
-          }
-        });
-      });
-
-      if (result && result.startsWith('http')) {
-        directUrl = result;
-        urlCache.set(cacheKey, result);
-      } else {
-        throw new Error('Failed to extract valid audio URL via yt-dlp');
+  if (!isYoutubeId && title && artist) {
+    try {
+      const matched = await findYouTubeVideo({ trackName: title, artistName: artist });
+      if (matched) {
+        videoUrl = `https://www.youtube.com/watch?v=${matched.id}`;
       }
+    } catch (searchErr) {
+      console.warn(`[YTMusic] YouTube search failed: ${searchErr.message}`);
     }
+  }
 
-    // Now proxy the stream directly to bypass YouTube's IP lock
-    console.log(`[Proxy] Streaming videoId: ${videoId}`);
-
+  // ── Helper: proxy a direct audio URL to the client ──
+  const proxyAudioUrl = async (directUrl) => {
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     };
+    if (req.headers.range) headers['Range'] = req.headers.range;
 
-    if (req.headers.range) {
-      headers['Range'] = req.headers.range;
+    const response = await axios({ method: 'get', url: directUrl, responseType: 'stream', headers, timeout: 15000 });
+    res.status(response.status);
+    ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(h => {
+      if (response.headers[h]) res.setHeader(h, response.headers[h]);
+    });
+    if (!res.getHeader('content-type')) res.setHeader('Content-Type', 'audio/webm');
+    response.data.pipe(res);
+  };
+
+  // ── Step 1: Use cached direct URL ──
+  if (urlCache.has(cacheKey)) {
+    console.log(`[YTMusic Cache Hit] ${cacheKey}`);
+    try {
+      return await proxyAudioUrl(urlCache.get(cacheKey));
+    } catch (cacheErr) {
+      console.warn(`[YTMusic] Cached URL expired: ${cacheErr.message}`);
+      urlCache.del(cacheKey);
     }
+  }
 
-    const response = await axios({
-      method: 'get',
-      url: directUrl,
-      responseType: 'stream',
-      headers: headers,
-      timeout: 15000
+  // ── Step 2: Cobalt Proxy (primary — verified working for YouTube) ──
+  const cobaltInstances = [
+    'https://melon.clxxped.lol',
+    'https://cobalt.omega.wolfy.love',
+    'https://nuko-c.meowing.de',
+    'https://cobaltapi.kittycat.boo',
+    'https://cobalt.alpha.wolfy.love',
+    'https://cobaltapi.squair.xyz',
+    'https://api.cobalt.liubquanti.click',
+    'https://api-cobalt.eversiege.network',
+    'https://api.qwkuns.me',
+    'https://subito-c.meowing.de'
+  ];
+
+  for (const inst of cobaltInstances) {
+    try {
+      const cobaltRes = await axios.post(inst, {
+        url: videoUrl,
+        downloadMode: 'audio'
+      }, {
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        timeout: 10000
+      });
+      const data = cobaltRes.data;
+      if (data && data.url && (data.status === 'stream' || data.status === 'tunnel' || data.status === 'redirect')) {
+        console.log(`[YTMusic] Cobalt success via ${inst}`);
+        urlCache.set(cacheKey, data.url);
+        // Proxy the audio bytes instead of redirecting (avoids CORS issues)
+        try {
+          return await proxyAudioUrl(data.url);
+        } catch (proxyErr) {
+          // If proxy fails, try redirect as last resort for this instance
+          console.warn(`[YTMusic] Proxy failed for Cobalt URL, redirecting: ${proxyErr.message}`);
+          return res.redirect(data.url);
+        }
+      }
+    } catch (cobaltErr) {
+      // Silently try next instance
+    }
+  }
+
+  // ── Step 3: @distube/ytdl-core fallback — pipe audio stream directly ──
+  try {
+    console.log(`[YTMusic] Trying ytdl-core fallback: ${videoUrl}`);
+    res.setHeader('Content-Type', 'audio/webm');
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const stream = ytdl(videoUrl, {
+      filter: 'audioonly',
+      quality: 'highestaudio',
+      highWaterMark: 1 << 25, // 32MB buffer
     });
 
-    // Copy status and headers from target response to client response
-    res.status(response.status);
-    
-    const responseHeaders = [
-      'content-type',
-      'content-length',
-      'content-range',
-      'accept-ranges',
-      'cache-control'
-    ];
-    
-    responseHeaders.forEach(h => {
-      if (response.headers[h]) {
-        res.setHeader(h, response.headers[h]);
+    stream.on('error', (err) => {
+      console.error('[ytdl-core stream error]', err.message);
+      if (!res.headersSent) {
+        res.status(502).json({ success: false, error: 'ytdl-core stream error' });
       }
     });
 
-    if (!res.getHeader('content-type')) {
-      res.setHeader('Content-Type', 'audio/webm');
-    }
+    return stream.pipe(res);
+  } catch (ytdlErr) {
+    console.warn(`[YTMusic] ytdl-core failed: ${ytdlErr.message}`);
+  }
 
-    response.data.pipe(res);
-
-  } catch (error) {
-    console.warn(`[/api/music/stream] Proxy failed: ${error.message}, trying fallback`);
-
-    // Fallback to ytdl-core direct stream piping
-    try {
-      const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-      res.setHeader('Content-Type', 'audio/webm');
-      
-      const stream = ytdl(videoUrl, {
-        filter: 'audioonly',
-        quality: 'highestaudio',
-        highWaterMark: 1 << 25 // 32MB buffer
-      });
-
-      stream.on('error', (err) => {
-        console.error('ytdl-core stream error:', err.message);
-      });
-
-      return stream.pipe(res);
-    } catch (ytdlErr) {
-      console.error('ytdl-core fallback failed:', ytdlErr.message);
-    }
-
-    // Secondary fallback: Redirect to a working Cobalt instance
-    const cobaltInstances = [
-      'https://dog.kittycat.boo',
-      'https://cobaltapi.kittycat.boo',
-      'https://api.cobalt.liubquanti.click'
-    ];
-    for (const inst of cobaltInstances) {
-      try {
-        const response = await axios.post(inst, {
-          url: `https://www.youtube.com/watch?v=${videoId}`,
-          downloadMode: 'audio'
-        }, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          timeout: 6000
-        });
-        const data = response.data;
-        if (data && data.url && (data.status === 'stream' || data.status === 'tunnel' || data.status === 'redirect')) {
-          console.log(`[Proxy Fallback] Redirecting to Cobalt: ${inst}`);
-          return res.redirect(data.url);
-        }
-      } catch (_) {}
-    }
-
-    if (!res.headersSent) {
-      res.status(500).json({ success: false, error: 'All streaming methods failed' });
-    }
+  if (!res.headersSent) {
+    res.status(500).json({ success: false, error: 'All streaming methods failed' });
   }
 });
 

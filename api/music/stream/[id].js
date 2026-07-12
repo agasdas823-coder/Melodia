@@ -10,6 +10,7 @@ export default async function handler(req, res) {
 
   const railwayUrl = process.env.RAILWAY_BACKEND_URL || 'https://melody-production-0d59.up.railway.app';
   
-  // Perform HTTP 302 Redirect to the Railway backend streaming endpoint
-  return res.redirect(`${railwayUrl}/api/music/stream/${id}`);
+  // Forward all query parameters (like title and artist) to the backend streaming endpoint
+  const queryStr = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+  return res.redirect(`${railwayUrl}/api/music/stream/${id}${queryStr}`);
 }
