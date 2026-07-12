@@ -25,7 +25,7 @@ export class AudioBridge {
     if (this.currentTrackId === track.id) return;
 
     try {
-      const streamUrl = `${API_URL}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+      const streamUrl = `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
       
       const howl = new Howl({
         src: [streamUrl],
@@ -47,7 +47,7 @@ export class AudioBridge {
     this.currentTrackId = track.id;
 
     try {
-      const streamUrl = `${API_URL}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+      const streamUrl = `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
 
       this.howl = new Howl({
         src: [streamUrl],
@@ -211,7 +211,7 @@ export class AudioBridge {
           this.onLoadCallback(this.howl.duration());
         }
       } else {
-        const streamUrl = `${API_URL}/api/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
+        const streamUrl = `${API_URL}/api/music/stream/${track.id}?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`;
 
         this.howl = new Howl({
           src: [streamUrl],
