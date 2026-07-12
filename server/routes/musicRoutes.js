@@ -460,16 +460,50 @@ router.get('/stream/:id', async (req, res, next) => {
 
     const videoUrl = `https://www.youtube.com/watch?v=${matchedVideo.id}`;
 
-    // ── Method: @distube/ytdl-core ──
-    const info = await ytdl.getInfo(videoUrl);
-    const format = ytdl.chooseFormat(info.formats, { filter: 'audioonly', quality: 'highestaudio' });
-    
-    if (format && format.url) {
-      urlCache.set(cacheKey, format.url);
-      return res.json({ url: format.url });
+    // ── Method 1: @distube/ytdl-core ──
+    try {
+      const info = await ytdl.getInfo(videoUrl);
+      const format = ytdl.chooseFormat(info.formats, { filter: 'audioonly', quality: 'highestaudio' });
+      if (format && format.url) {
+        urlCache.set(cacheKey, format.url);
+        return res.json({ url: format.url });
+      }
+    } catch (ytdlErr) {
+      console.warn(`[/api/stream] ytdl-core failed, attempting Cobalt fallback: ${ytdlErr.message}`);
     }
 
-    return res.status(502).json({ success: false, error: { message: 'Could not extract audio URL.' } });
+    // ── Method 2: Cobalt Proxy Fallback ──
+    const cobaltInstances = [
+      'https://dog.kittycat.boo',
+      'https://cobaltapi.kittycat.boo',
+      'https://api.cobalt.liubquanti.click'
+    ];
+
+    for (const inst of cobaltInstances) {
+      try {
+        const response = await axios.post(inst, {
+          url: videoUrl,
+          downloadMode: 'audio'
+        }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          timeout: 8000
+        });
+
+        const data = response.data;
+        if (data && data.url && (data.status === 'stream' || data.status === 'tunnel' || data.status === 'redirect')) {
+          urlCache.set(cacheKey, data.url);
+          console.log(`[/api/stream] Extraction succeeded via Cobalt instance: ${inst}`);
+          return res.json({ url: data.url });
+        }
+      } catch (cobaltErr) {
+        console.warn(`[/api/stream] Cobalt instance ${inst} failed: ${cobaltErr.message}`);
+      }
+    }
+
+    return res.status(502).json({ success: false, error: { message: 'Could not extract audio URL from ytdl-core or any Cobalt proxy.' } });
   } catch (err) {
     console.error(`[/api/stream] Failed for ID ${id} (${title} - ${artist}):`, err.message);
     return res.status(502).json({
