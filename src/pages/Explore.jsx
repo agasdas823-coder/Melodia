@@ -33,7 +33,7 @@ const MOOD_QUERIES = {
 };
 
 export default function Explore() {
-  const { currentTrack, isPlaying, playTrack, togglePlay, toggleLike, isLiked, recentTracks, createPlaylist, prefetchTrack } = usePlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlay, toggleLike, isLiked, recentTracks, createPlaylist, prefetchTrack, setNowPlayingOpen, setPreviewTrack } = usePlayer();
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilterTab, setActiveFilterTab] = useState("all");
@@ -160,17 +160,30 @@ export default function Explore() {
     }
   };
 
+  const handleItemClick = (song, e) => {
+    if (e) e.stopPropagation();
+
+    if (song.type === 'playlist') {
+      navigate(`/yt-playlist/${song.id}`);
+      return;
+    }
+
+    const isCurrent = currentTrack && (currentTrack.id === song.id || currentTrack._id === song._id);
+    if (!isCurrent) setPreviewTrack(song);
+    setNowPlayingOpen(true);
+  };
+
   const handlePlayClick = (song, e) => {
     if (e) e.stopPropagation();
     
     if (song.type === 'playlist') {
-      window.location.href = `/yt-playlist/${song.id}`;
+      navigate(`/yt-playlist/${song.id}`);
       return;
     }
 
     const isCurrent = currentTrack && (currentTrack.id === song.id || currentTrack._id === song._id);
     if (isCurrent) {
-      togglePlay();
+      if (!isPlaying) togglePlay();
     } else {
       const playableSongs = songs.filter(s => s.type !== 'playlist');
       playTrack(song, playableSongs);
@@ -367,7 +380,7 @@ export default function Explore() {
                 return (
                   <div
                     key={song.id || song._id}
-                    onClick={() => handlePlayClick(song)}
+                    onClick={() => handleItemClick(song)}
                     onMouseEnter={() => handleMouseEnter(song)}
                     onMouseLeave={handleMouseLeave}
                     className="group relative rounded-2xl overflow-hidden bg-card border border-border cursor-pointer transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_24px_rgba(139,92,246,0.15)] flex flex-col"

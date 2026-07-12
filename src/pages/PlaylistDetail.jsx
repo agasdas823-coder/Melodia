@@ -8,7 +8,7 @@ export default function PlaylistDetail() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { playlists, removeSongFromPlaylist, currentTrack, isPlaying, playTrack, togglePlay, renamePlaylist, deletePlaylist, toggleShuffle, isShuffled } = usePlayer();
+  const { playlists, removeSongFromPlaylist, currentTrack, isPlaying, playTrack, togglePlay, renamePlaylist, deletePlaylist, toggleShuffle, isShuffled, setNowPlayingOpen, setPreviewTrack } = usePlayer();
   const { user } = useAuth();
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -36,10 +36,18 @@ export default function PlaylistDetail() {
 
   const playlistSongs = playlist.songs || [];
 
+  useEffect(() => {
+    if (playlistSongs.length > 0) {
+      import('../utils/MusicSourceManager').then(({ musicSourceManager }) => {
+        musicSourceManager.prefetchBatch(playlistSongs).catch(() => {});
+      });
+    }
+  }, [playlist.id]);
+
   const handleRowClick = (song) => {
     const isCurrent = currentTrack && (currentTrack.id === song.id || currentTrack._id === song._id);
     if (isCurrent) {
-      togglePlay();
+      if (!isPlaying) togglePlay();
     } else {
       playTrack(song, playlistSongs);
     }
@@ -241,7 +249,15 @@ export default function PlaylistDetail() {
                     </div>
                     
                     <div className="col-span-8 md:col-span-6 flex items-center gap-4 min-w-0">
-                      <div className="w-12 h-12 rounded-lg shadow-md overflow-hidden bg-surface-container flex-shrink-0">
+                      <div 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const isCurrent = currentTrack && (currentTrack.id === song.id || currentTrack._id === song._id);
+                          if (!isCurrent) setPreviewTrack(song);
+                          setNowPlayingOpen(true);
+                        }}
+                        className="w-12 h-12 rounded-lg shadow-md overflow-hidden bg-surface-container flex-shrink-0 cursor-pointer hover:opacity-85 transition-opacity"
+                      >
                         {(song.thumbnail || song.thumbnail_medium || song.coverArtUrl) ? (
                           <img className="w-full h-full object-cover" alt={song.title} src={song.thumbnail || song.thumbnail_medium || song.coverArtUrl} />
                         ) : (

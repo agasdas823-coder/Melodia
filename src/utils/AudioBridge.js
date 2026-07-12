@@ -2,13 +2,14 @@ import { Howl } from 'howler';
 import { API_URL } from './config';
 
 export class AudioBridge {
-  constructor({ volume = 0.7, onPlay, onPause, onEnd, onProgress, onLoad }) {
+  constructor({ volume = 0.7, onPlay, onPause, onEnd, onProgress, onLoad, onError }) {
     this.volume = volume;
     this.onPlayCallback = onPlay;
     this.onPauseCallback = onPause;
     this.onEndCallback = onEnd;
     this.onProgressCallback = onProgress;
     this.onLoadCallback = onLoad;
+    this.onErrorCallback = onError;
 
     this.howl = null;
     this.progressInterval = null;
@@ -29,7 +30,7 @@ export class AudioBridge {
       const howl = new Howl({
         src: [streamUrl],
         html5: true,
-        preload: true,
+        preload: 'metadata',
         volume: this.volume,
         format: ['mp4', 'm4a', 'webm']
       });
@@ -82,6 +83,69 @@ export class AudioBridge {
       });
     } catch (err) {
       console.error('AudioBridge load error:', err);
+    }
+  }
+
+  /**
+   * Play a track from a pre-resolved direct URL (e.g. JioSaavn media_url).
+   * Bypasses the /api/stream/ server route entirely.
+   * @param {string} url   - Direct audio URL (mp3, m4a, webm, etc.)
+   * @param {object} track - Track metadata (used for currentTrackId)
+   */
+  playUrl(url, track) {
+    if (!url || !track) return;
+
+    // If this is already the active track and howl is loaded, just resume
+    if (this.currentTrackId === track.id && this.howl) {
+      if (!this.howl.playing()) {
+        this.howl.play();
+      }
+      return;
+    }
+
+    this.unload();
+    this.currentTrackId = track.id;
+
+    try {
+      this.howl = new Howl({
+        src: [url],
+        html5: true,
+        preload: 'metadata',
+        volume: this.volume,
+        format: ['mp3', 'm4a', 'mp4', 'webm', 'aac'],
+        onplay: () => {
+          if (this.onPlayCallback) this.onPlayCallback();
+          this.startProgress();
+        },
+        onpause: () => {
+          if (this.onPauseCallback) this.onPauseCallback();
+          this.stopProgress();
+        },
+        onend: () => {
+          if (this.onEndCallback) this.onEndCallback();
+          this.stopProgress();
+        },
+        onload: () => {
+          if (this.onLoadCallback) {
+            this.onLoadCallback(this.howl.duration());
+          }
+        },
+        onloaderror: (id, err) => {
+          console.error('[AudioBridge] playUrl load error:', err);
+          if (this.onErrorCallback) this.onErrorCallback('load', err);
+        },
+        onplayerror: (id, err) => {
+          console.error('[AudioBridge] playUrl play error:', err);
+          this.howl.once('unlock', () => {
+            this.howl.play();
+          });
+        },
+      });
+
+      this.howl.play();
+    } catch (err) {
+      console.error('[AudioBridge] playUrl error:', err);
+      if (this.onErrorCallback) this.onErrorCallback('exception', err);
     }
   }
 
@@ -152,6 +216,7 @@ export class AudioBridge {
         this.howl = new Howl({
           src: [streamUrl],
           html5: true, // Force HTML5 Audio to stream the file instead of downloading entirely
+          preload: 'metadata',
           volume: this.volume,
           format: ['mp4', 'm4a', 'webm'],
           onplay: () => {
@@ -186,6 +251,72 @@ export class AudioBridge {
       this.howl.play();
     } catch (err) {
       console.error('AudioBridge play error:', err);
+    }
+  }
+
+  /**
+   * Play a track using a pre-resolved direct URL (e.g. from JioSaavn).
+   * This bypasses the /api/stream/ URL construction used by play().
+   *
+   * @param {string} url   - Direct audio stream URL
+   * @param {object} track - Track metadata (used for currentTrackId tracking)
+   */
+  async playUrl(url, track) {
+    if (!url || !track) return;
+
+    // If same track is already loaded with this url and howl exists, just play
+    if (this.currentTrackId === track.id && this.howl) {
+      if (!this.howl.playing()) {
+        this.howl.play();
+      }
+      return;
+    }
+
+    this.unload();
+    this.currentTrackId = track.id;
+
+    // Clear any prefetch cache since we have a direct URL
+    Object.values(this.prefetchCache).forEach(h => h.unload());
+    this.prefetchCache = {};
+
+    try {
+      this.howl = new Howl({
+        src: [url],
+        html5: true,
+        preload: 'metadata',
+        volume: this.volume,
+        format: ['mp4', 'm4a', 'webm', 'mp3'],
+        onplay: () => {
+          if (this.onPlayCallback) this.onPlayCallback();
+          this.startProgress();
+        },
+        onpause: () => {
+          if (this.onPauseCallback) this.onPauseCallback();
+          this.stopProgress();
+        },
+        onend: () => {
+          if (this.onEndCallback) this.onEndCallback();
+          this.stopProgress();
+        },
+        onload: () => {
+          if (this.onLoadCallback) {
+            this.onLoadCallback(this.howl.duration());
+          }
+        },
+        onloaderror: (id, err) => {
+          console.error('AudioBridge playUrl load error:', err);
+        },
+        onplayerror: (id, err) => {
+          console.error('AudioBridge playUrl play error:', err);
+          this.howl.once('unlock', () => {
+            this.howl.play();
+          });
+        },
+      });
+
+      this.howl.play();
+    } catch (err) {
+      console.error('AudioBridge playUrl error:', err);
     }
   }
 

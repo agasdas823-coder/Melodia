@@ -8,12 +8,20 @@ import PlaylistCover from "../components/playlist/PlaylistCover";
 
 export default function Library() {
   const navigate = useNavigate();
-  const { currentTrack, isPlaying, playTrack, togglePlay, likedSongs, playlists, createPlaylist } = usePlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlay, likedSongs, playlists, createPlaylist, setNowPlayingOpen, setPreviewTrack } = usePlayer();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("liked");
   const [generating, setGenerating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
+
+  useEffect(() => {
+    if (likedSongs.length > 0) {
+      import('../utils/MusicSourceManager').then(({ musicSourceManager }) => {
+        musicSourceManager.prefetchBatch(likedSongs).catch(() => {});
+      });
+    }
+  }, [likedSongs.length]);
 
   const handleManualCreate = () => {
     if (!newPlaylistName.trim()) return;
@@ -43,7 +51,7 @@ export default function Library() {
   const handleRowClick = (song) => {
     const isCurrent = currentTrack && (currentTrack.id === song.id || currentTrack._id === song._id);
     if (isCurrent) {
-      togglePlay();
+      if (!isPlaying) togglePlay();
     } else {
       playTrack(song, likedSongs);
     }
@@ -180,9 +188,15 @@ export default function Library() {
                       )}
                     </div>
                     <img
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        const isCurrent = currentTrack && (currentTrack.id === song.id || currentTrack._id === song._id);
+                        if (!isCurrent) setPreviewTrack(song);
+                        setNowPlayingOpen(true);
+                      }}
                       src={song.thumbnail || song.thumbnail_medium || song.coverArtUrl || "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=200&h=200&fit=crop&auto=format"}
                       alt={song.title}
-                      className="w-10 h-10 rounded-lg object-cover shrink-0 bg-[#111120]"
+                      className="w-10 h-10 rounded-lg object-cover shrink-0 bg-[#111120] cursor-pointer hover:opacity-85 transition-opacity"
                     />
                     <div className="flex-grow min-w-0 text-left">
                       <p className={`text-sm font-bold truncate ${isCurrent ? "text-primary" : "text-white"}`}>

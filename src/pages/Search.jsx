@@ -4,6 +4,7 @@ import { usePlayer } from "../context/PlayerContext";
 import { Search as SearchIcon, X, Play, Pause, Music, Heart, Plus } from "lucide-react";
 import AddToPlaylistDropdown from "../components/playlist/AddToPlaylistDropdown";
 import { API_URL } from "../utils/config";
+import { musicSourceManager } from "../utils/MusicSourceManager";
 
 const POPULAR_SEARCHES = [
   "Michael Jackson",
@@ -18,7 +19,7 @@ const POPULAR_SEARCHES = [
 
 export default function Search() {
   const navigate = useNavigate();
-  const { currentTrack, isPlaying, playTrack, togglePlay, toggleLike, isLiked, createPlaylist, prefetchTrack, loadTrack, setNowPlayingOpen } = usePlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlay, toggleLike, isLiked, createPlaylist, prefetchTrack, setNowPlayingOpen, setPreviewTrack } = usePlayer();
   const [inputValue, setInputValue] = useState("");
   const [committedQuery, setCommittedQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -52,6 +53,13 @@ export default function Search() {
       if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
       setResults(data.songs || []);
+      
+      // Pre-cache FIRST 10 results instantly
+      if (data.songs && data.songs.length > 0) {
+        data.songs.filter(s => s.type !== 'playlist').slice(0, 10).forEach(track => {
+          musicSourceManager.prefetch(track);
+        });
+      }
       
       // Update recent searches
       setRecentSearches(prev => {
@@ -105,14 +113,17 @@ export default function Search() {
 
   const handleItemClick = (item, e) => {
     if (e) e.stopPropagation();
-    
+
     if (item.type === 'playlist') {
       navigate(`/yt-playlist/${item.id}`);
       return;
     }
 
-    // Open full-screen preview (paused) instead of playing
-    loadTrack(item);
+    const isCurrent = currentTrack && (currentTrack.id === item.id || currentTrack._id === item._id);
+    if (!isCurrent) {
+      // Preview without affecting playback
+      setPreviewTrack(item);
+    }
     setNowPlayingOpen(true);
   };
 
@@ -121,7 +132,7 @@ export default function Search() {
     
     const isCurrent = currentTrack && (currentTrack.id === item.id || currentTrack._id === item._id);
     if (isCurrent) {
-      togglePlay();
+      if (!isPlaying) togglePlay();
     } else {
       const playableResults = results.filter(r => r.type !== 'playlist');
       playTrack(item, playableResults);

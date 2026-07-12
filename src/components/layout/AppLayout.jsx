@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+
 import { Link, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { usePlayer } from "../../context/PlayerContext";
@@ -29,6 +30,7 @@ import {
   Clock,
   Maximize2,
 } from "lucide-react";
+import { Toaster, toast } from "sonner";
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
@@ -53,6 +55,7 @@ export default function AppLayout() {
     createPlaylist,
     nowPlayingOpen,
     setNowPlayingOpen,
+    activeSource,
   } = usePlayer();
 
   const navigate = useNavigate();
@@ -68,6 +71,8 @@ export default function AppLayout() {
     logout();
     navigate("/login");
   };
+
+  // Source-status toasts removed as per instruction
 
   const isActive = (path) => location.pathname === path;
 
@@ -87,12 +92,24 @@ export default function AppLayout() {
   };
 
 
-
   return (
     <div
       className="h-screen flex flex-col overflow-hidden bg-background text-foreground"
       style={{ fontFamily: "Urbanist, sans-serif" }}
     >
+      {/* Sonner toast container */}
+      <Toaster
+        theme="dark"
+        toastOptions={{
+          style: {
+            background: "rgba(14,14,28,0.95)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "#e2e2f0",
+            backdropFilter: "blur(12px)",
+            fontSize: "13px",
+          },
+        }}
+      />
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar (Desktop Only) */}
         <aside

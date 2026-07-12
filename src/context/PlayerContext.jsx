@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { AudioBridge } from '../utils/AudioBridge';
+import { musicSourceManager, resolveTrack } from '../utils/MusicSourceManager';
 
 
 const PlayerContext = createContext();
@@ -50,9 +51,30 @@ export function PlayerProvider({ children }) {
   const [isShuffled, setIsShuffled] = useState(false);
   const [isLooped, setIsLooped] = useState(false);
   const [nowPlayingOpen, setNowPlayingOpen] = useState(false);
+  // Track to show in the NowPlaying panel without affecting playback (cover click preview)
+  const [previewTrack, setPreviewTrack] = useState(null);
+  // 'musicapi' | 'fallback' — tracks which layer is active for the current track
+  const [activeSource, setActiveSource] = useState(null);
 
   const { user } = useAuth();
   
+  const queueRef = useRef(queue);
+  const currentIndexRef = useRef(currentIndex);
+  const durationRef = useRef(duration);
+  const prefetchTriggeredRef = useRef(false);
+
+  useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { 
+    currentIndexRef.current = currentIndex; 
+    prefetchTriggeredRef.current = false; 
+  }, [currentIndex]);
+  useEffect(() => { durationRef.current = duration; }, [duration]);
+
+  // Clear preview when panel is closed
+  useEffect(() => {
+    if (!nowPlayingOpen) setPreviewTrack(null);
+  }, [nowPlayingOpen]);
+
   const [likedSongs, setLikedSongs] = useState([]);
   const [recentTracks, setRecentTracks] = useState([]);
   const [playlists, setPlaylists] = useState([]);
@@ -214,8 +236,8 @@ export function PlayerProvider({ children }) {
 
   const addToQueue = useCallback((song) => {
     setQueue((prev) => {
-      // If song already exists, don't add
       if (prev.some((s) => s.id === song.id || s._id === song._id)) return prev;
+      musicSourceManager.prefetch(song);
       return [...prev, song];
     });
   }, []);
@@ -247,8 +269,22 @@ export function PlayerProvider({ children }) {
         onPlay: () => setIsPlaying(true),
         onPause: () => setIsPlaying(false),
         onEnd: () => handleNext(),
-        onProgress: (currentTime) => setProgress(currentTime),
+        onProgress: (currentTime) => {
+          setProgress(currentTime);
+          
+          const dur = durationRef.current;
+          if (dur > 0 && currentTime / dur >= 0.5 && !prefetchTriggeredRef.current) {
+            prefetchTriggeredRef.current = true;
+            const q = queueRef.current;
+            const ci = currentIndexRef.current;
+            const nextSongs = q.slice(ci + 1, ci + 4);
+            if (nextSongs.length > 0) {
+              musicSourceManager.prefetchBatch(nextSongs).catch(() => {});
+            }
+          }
+        },
         onLoad: (durationSecs) => setDuration(durationSecs),
+        onError: (type, err) => console.error('[PlayerContext] AudioBridge error:', type, err),
       });
     }
     return bridgeRef.current;
@@ -306,18 +342,18 @@ export function PlayerProvider({ children }) {
     bridge.load(track);
   }, [getBridge]);
 
-  // PlayTrack implementation using AudioBridge
+  // PlayTrack implementation using AudioBridge + MusicSourceManager dual-layer
   const playTrack = useCallback((track, newQueue = []) => {
     let targetQueue = queue;
     let targetIndex = 0;
 
     if (newQueue.length > 0) {
       targetQueue = newQueue;
-      targetIndex = newQueue.findIndex((t) => t.id === track.id || t._id === track._id);
+      targetIndex = newQueue.findIndex((t) => t.id === track.id || t._id === track.id);
       if (targetIndex < 0) targetIndex = 0;
       setQueue(newQueue);
     } else {
-      const idx = queue.findIndex((t) => t.id === track.id || t._id === track._id);
+      const idx = queue.findIndex((t) => t.id === track.id || t._id === track.id);
       if (idx >= 0) {
         targetIndex = idx;
       } else {
@@ -332,9 +368,30 @@ export function PlayerProvider({ children }) {
     setProgress(0);
     setDuration(track.duration || 0);
     setIsPlaying(true);
+    setActiveSource(null); // Reset source during loading
 
     const bridge = getBridge();
-    bridge.play(track);
+    bridge.unload(); // Stop current playback immediately to avoid overlap
+    
+    // Fire non-blocking prefetch for next 3 songs immediately
+    const nextSongsForPrefetch = targetQueue.slice(targetIndex + 1, targetIndex + 4);
+    if (nextSongsForPrefetch.length > 0) {
+      void musicSourceManager.prefetchBatch(nextSongsForPrefetch);
+    }
+
+    // Resolve via MusicSourceManager
+    resolveTrack(track).then((resolved) => {
+      setActiveSource(resolved.source);
+      bridge.playUrl(resolved.url, track);
+      
+      // Cache lyrics if returned (preview might not have lyrics, but we keep it safe)
+      if (resolved.lyrics) {
+        setLyricsCache(prev => ({ ...prev, [track.id]: resolved.lyrics.trim() }));
+      }
+    }).catch((err) => {
+      console.error('[PlayerContext] Failed to play track:', err);
+      // Fallback already handled inside resolveTrack, so if it fails completely, we just stop.
+    });
   }, [queue, getBridge]);
 
   const togglePlay = useCallback(() => {
@@ -371,9 +428,25 @@ export function PlayerProvider({ children }) {
           setCurrentTrack(next);
           setProgress(0);
           setDuration(next.duration || 0);
+          setActiveSource(null); // Reset source during loading
           
+          // Fire non-blocking prefetch for next 3 songs immediately
+          const upcomingSongs = q.slice(nextIdx + 1, nextIdx + 4);
+          if (upcomingSongs.length > 0) {
+            void musicSourceManager.prefetchBatch(upcomingSongs);
+          }
+
           const bridge = getBridge();
-          bridge.play(next);
+          bridge.unload(); // Stop current playback immediately
+          resolveTrack(next).then((resolved) => {
+            setActiveSource(resolved.source);
+            bridge.playUrl(resolved.url, next);
+            if (resolved.lyrics) {
+              setLyricsCache(prev => ({ ...prev, [next.id]: resolved.lyrics.trim() }));
+            }
+          }).catch((err) => {
+            console.error('[PlayerContext] Failed to play next track:', err);
+          });
         }
         return nextIdx;
       });
@@ -395,9 +468,25 @@ export function PlayerProvider({ children }) {
           setCurrentTrack(prev);
           setProgress(0);
           setDuration(prev.duration || 0);
+          setActiveSource(null); // Reset source during loading
+
+          // Fire non-blocking prefetch for next 3 songs immediately
+          const upcomingSongs = q.slice(prevIdx + 1, prevIdx + 4);
+          if (upcomingSongs.length > 0) {
+            void musicSourceManager.prefetchBatch(upcomingSongs);
+          }
 
           const bridge = getBridge();
-          bridge.play(prev);
+          bridge.unload(); // Stop current playback immediately
+          resolveTrack(prev).then((resolved) => {
+            setActiveSource(resolved.source);
+            bridge.playUrl(resolved.url, prev);
+            if (resolved.lyrics) {
+              setLyricsCache(cache => ({ ...cache, [prev.id]: resolved.lyrics.trim() }));
+            }
+          }).catch((err) => {
+            console.error('[PlayerContext] Failed to play prev track:', err);
+          });
         }
         return prevIdx;
       });
@@ -450,6 +539,7 @@ export function PlayerProvider({ children }) {
         queue,
         playerReady,
         usingFallback,
+        activeSource,
         lyricsOpen,
         setLyricsOpen,
         loadTrack,
@@ -481,6 +571,8 @@ export function PlayerProvider({ children }) {
         prefetchTrack,
         nowPlayingOpen,
         setNowPlayingOpen,
+        previewTrack,
+        setPreviewTrack,
       }}
     >
       {children}

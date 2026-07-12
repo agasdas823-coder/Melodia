@@ -7,7 +7,7 @@ Melodia is a premium, distraction-free music streaming platform designed for dis
 - **High-Fidelity Audio Streaming**: Seamless playback powered by a robust Node.js backend.
 - **YouTube Integration**: Search and stream high-quality audio directly from YouTube sources with custom API integrations.
 - **Instant Lyrics**: Deep integration with Genius API to fetch and display synchronized lyrics for your favorite tracks instantly.
-- **Pre-fetching Engine**: Intelligently buffers audio tracks and lyrics in the background upon hovering, allowing zero-latency playback.
+- **Pre-fetching Engine**: Intelligently buffers audio tracks and lyrics in the background upon hovering, allowing lower-latency playback.
 - **Modern User Interface**: A beautifully crafted UI using React, Tailwind CSS, and Framer Motion, featuring glassmorphism, dynamic color themes, and subtle micro-animations.
 - **Custom Playlists**: Create, manage, and share your personal music library with full playlist control.
 - **Google OAuth Integration**: Secure, one-click sign-up and login flow powered by Google Identity Services.

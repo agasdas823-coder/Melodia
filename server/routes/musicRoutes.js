@@ -1,8 +1,10 @@
 import express from 'express';
 import YouTubeSR from 'youtube-sr';
+import ytSearch from 'yt-search';
 import youtubeDl from 'youtube-dl-exec';
 import ytdl from '@distube/ytdl-core';
 import axios from 'axios';
+import NodeCache from 'node-cache';
 // genius-lyrics removed — its default token was revoked by Genius, causing HTML responses.
 // We now use LRCLIB (free, open-source, no auth) + Lyrics.ovh as fallback.
 
@@ -11,10 +13,8 @@ const YouTube = YouTubeSR.default ?? YouTubeSR;
 
 const SEARCH_LIMIT = 20;
 
-// In-memory cache for resolved stream URLs (avoids re-running yt-dlp on every Range request/seek)
-// Key: "artist|title", Value: { url, contentType, resolvedAt }
-const streamCache = new Map();
-const STREAM_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes (YouTube URLs expire after ~6h)
+// URL cache (1-hour TTL) for direct stream URLs
+const urlCache = new NodeCache({ stdTTL: 3600 });
 
 // Helper: convert milliseconds -> "m:ss"
 function fmtDurationMs(ms) {
@@ -96,36 +96,57 @@ router.get('/search', async (req, res, next) => {
 
       return res.json({ success: true, count: playlists.length, songs: playlists });
     } else {
-      // Use iTunes for individual songs
-      const response = await axios.get(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=${limit}${attributeParam}`);
+      // Use YouTube Search for individual songs
+      // We append " audio" to the query as requested by the task
+      let songs = [];
+
+      const searchAndFilter = async (searchStr) => {
+        let result = null;
+        try {
+          result = await ytSearch(searchStr);
+        } catch (err) {
+          console.error('ytSearch error:', err);
+        }
+        
+        if (!result || !result.videos) return [];
+        return result.videos
+          .filter(v => {
+            const seconds = v.duration?.seconds || 0;
+            if (seconds < 90) return false;
+            if (seconds > 1200) return false; // Increased max duration to 20 mins to allow longer live tracks
+            const title = (v.title || '').toLowerCase();
+            if (title.includes('podcast') || title.includes('tutorial')) return false;
+            if (title.includes('gaming') || title.includes('montage')) return false;
+            // Also filter out obvious huge compilations
+            if (title.includes('jukebox') || title.includes('non stop') || title.includes('non-stop')) return false;
+            return true;
+          })
+          .slice(0, limit)
+          .map((v) => {
+            const seconds = v.duration?.seconds || 0;
+            const thumbnail = v.thumbnail || '';
+            return {
+              id: v.videoId, _id: v.videoId, title: v.title, name: v.title,
+              artist: v.author?.name || 'YouTube', artists: [{ name: v.author?.name || 'YouTube' }],
+              album: 'YouTube Single',
+              thumbnail: thumbnail, thumbnail_medium: thumbnail, coverArtUrl: thumbnail,
+              duration: seconds, duration_ms: seconds * 1000,
+              duration_string: v.duration?.timestamp || fmtDurationMs(seconds * 1000),
+              views: v.views || '', url: v.url || `https://www.youtube.com/watch?v=${v.videoId}`,
+              audioUrl: null, audio_url: null, previewUrl: null, preview_url: null, type: 'song'
+            };
+          });
+      };
+
+      // Try with " audio" suffix first
+      songs = await searchAndFilter(`${q} audio`);
       
-      if (response.data && response.data.results) {
-        const songs = response.data.results.map((track) => {
-          const highResArtwork = track.artworkUrl100 ? track.artworkUrl100.replace('100x100bb', '600x600bb') : null;
-          
-          return {
-            id: track.trackId.toString(),
-            _id: track.trackId.toString(),
-            title: track.trackName,
-            name: track.trackName,
-            artist: track.artistName,
-            artists: [{ name: track.artistName }],
-            album: track.collectionName || 'Single',
-            thumbnail: highResArtwork,
-            thumbnail_medium: track.artworkUrl100,
-            coverArtUrl: highResArtwork,
-            duration: Math.floor(track.trackTimeMillis / 1000),
-            duration_ms: track.trackTimeMillis,
-            duration_string: fmtDurationMs(track.trackTimeMillis),
-            views: '', 
-            url: track.trackViewUrl,
-            audioUrl: null,
-            audio_url: null,
-            previewUrl: track.previewUrl,
-            preview_url: track.previewUrl,
-            type: 'song'
-          };
-        });
+      // Fallback to raw query if nothing found (e.g. artist searches flooded with jukeboxes)
+      if (songs.length === 0) {
+        songs = await searchAndFilter(q);
+      }
+      
+      if (songs.length > 0) {
         return res.json({ success: true, count: songs.length, songs });
       }
       return res.json({ success: true, count: 0, songs: [] });
@@ -294,93 +315,182 @@ router.get('/track/:id', async (req, res, next) => {
   }
 });
 
-// ── GET /api/stream/:id — proxy audio bytes from YouTube ──────────────────────
+async function findYouTubeVideo(track) {
+  const rawName   = track.trackName  || '';
+  const rawArtist = track.artistName || '';
+
+  // ── Helper: derive title variants ─────────────────────────────────────────
+  const noParens   = rawName.replace(/\([^)]*\)/g, '').trim();
+  const noFeat     = rawName.replace(/\bfeat\..*$/i, '').replace(/\bfeaturing\b.*$/i, '').trim();
+  const noFeatClean= noParens.replace(/\bfeat\..*$/i, '').replace(/\bfeaturing\b.*$/i, '').trim();
+  const firstWord  = rawName.split(/[\s\-–]+/)[0];
+  const firstPart  = rawName.split(/[,\-–(]/)[0].trim(); // up to first comma/dash/paren
+  const artistFirst= rawArtist.split(/[\s,&]+/)[0];
+
+  // Build all unique name variants to try
+  const nameVariants = [
+    rawName,
+    noFeat,
+    noParens,
+    noFeatClean,
+    firstPart,
+    firstWord,
+  ].filter(Boolean);
+
+  // ── Build prioritised query list ───────────────────────────────────────────
+  const queries = [];
+
+  // 1. Most specific first (name + artist, various suffixes)
+  for (const name of nameVariants.slice(0, 3)) {
+    queries.push(`${name} ${rawArtist} official audio`);
+    queries.push(`${name} ${rawArtist} audio`);
+    queries.push(`${name} ${rawArtist}`);
+  }
+
+  // 2. Name-only (no artist)
+  for (const name of nameVariants.slice(0, 4)) {
+    queries.push(`${name} official audio`);
+    queries.push(`${name} audio`);
+    queries.push(`${name}`);
+  }
+
+  // 3. Artist + first word of song (for short/common titles)
+  if (firstWord.length > 2) {
+    queries.push(`${rawArtist} ${firstWord}`);
+    queries.push(`${artistFirst} ${firstWord}`);
+  }
+
+  // 4. Last resort: just the artist (pick their most popular upload)
+  queries.push(`${rawArtist} official`);
+  queries.push(`${rawArtist}`);
+
+  // Deduplicate
+  const seen = new Set();
+  const allQueries = queries.filter(q => {
+    const k = q.trim().toLowerCase();
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  // ── Helper: is this video a bad match? ─────────────────────────────────────
+  function isBadVideo(v) {
+    const seconds = typeof v.duration === 'number'
+      ? Math.round(v.duration / 1000)
+      : (v.duration?.seconds || 0);
+    if (seconds > 0 && seconds < 30) return true;          // too short
+    const t = (v.title || '').toLowerCase();
+    if (/\b(top\s*\d+|best\s+of|greatest\s+hits|megamix|non.?stop)\b/.test(t)) return true; // obvious compilations
+    return false;
+  }
+
+  // ── Search loop ─────────────────────────────────────────────────────────────
+  for (const query of allQueries) {
+    console.log('[YouTube] Trying:', query);
+    try {
+      const videos = await YouTube.search(query, { limit: 10, type: 'video', safeSearch: false });
+      if (!videos || videos.length === 0) continue;
+
+      const filtered = videos.filter(v => !isBadVideo(v));
+
+      // Prefer official channel or "official" in title
+      const official = filtered.find(v =>
+        v.title?.toLowerCase().includes('official') ||
+        v.channel?.verified
+      );
+      if (official) { console.log('[YouTube] Found (official) with:', query); return official; }
+
+      if (filtered.length > 0) { console.log('[YouTube] Found with:', query); return filtered[0]; }
+
+      // No filtered result — accept the first raw result if it exists
+      if (videos.length > 0 && !isBadVideo(videos[0])) {
+        console.log('[YouTube] Found (raw fallback) with:', query);
+        return videos[0];
+      }
+    } catch (err) {
+      console.warn(`[YouTube] Search failed for "${query}":`, err.message);
+    }
+  }
+
+  // Absolute last resort — raw first result of most likely query, no filters
+  for (const query of allQueries.slice(0, 5)) {
+    try {
+      const videos = await YouTube.search(query, { limit: 1, type: 'video', safeSearch: false });
+      if (videos?.[0]) {
+        console.log('[YouTube] Last resort with:', query);
+        return videos[0];
+      }
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+// ── GET /api/stream/:id — return direct URL from YouTube ──────────────────────
 // Strategy: Try youtube-dl-exec first (needs Python, works locally).
 //           If it fails, fall back to @distube/ytdl-core (pure Node.js, works on Railway).
 router.get('/stream/:id', async (req, res, next) => {
   const { title, artist } = req.query;
+  const id = req.params.id;
+  const isYoutubeId = id && id.length === 11 && /^[a-zA-Z0-9_-]{11}$/.test(id);
 
-  if (!title || !artist) {
+  if (!isYoutubeId && (!title || !artist)) {
     return res.status(400).json({ success: false, error: { message: 'title and artist query parameters are required.' } });
   }
 
   try {
-    const cacheKey = `${artist}|${title}`.toLowerCase();
+    const cacheKey = isYoutubeId ? `ytid:${id}` : `${artist}|${title}`.toLowerCase();
 
-    // Search YouTube for the track
-    let videoUrl;
-    const cached = streamCache.get(cacheKey);
-    if (cached && (Date.now() - cached.resolvedAt < STREAM_CACHE_TTL_MS)) {
-      videoUrl = cached.videoUrl;
-    } else {
-      const searchQuery = `${artist} - ${title} audio`;
-      const videos = await YouTube.search(searchQuery, { limit: 1, type: 'video', safeSearch: false });
-
-      if (!videos || videos.length === 0) {
-        return res.status(404).json({ success: false, error: { message: 'Could not find a matching YouTube video.' } });
-      }
-
-      videoUrl = `https://www.youtube.com/watch?v=${videos[0].id}`;
-      streamCache.set(cacheKey, { videoUrl, resolvedAt: Date.now() });
+    // Before extraction: Check backend URL cache
+    if (urlCache.has(cacheKey)) {
+      console.log(`[Backend Cache Hit] ${cacheKey}`);
+      return res.json({ url: urlCache.get(cacheKey) });
     }
 
-    // ── Method 1: youtube-dl-exec (needs Python — works locally) ──
+    let matchedVideo = null;
+    if (isYoutubeId) {
+      matchedVideo = { id };
+    } else {
+      // Search YouTube using progressive helper
+      matchedVideo = await findYouTubeVideo({ trackName: title, artistName: artist });
+    }
+
+    if (!matchedVideo) {
+      return res.status(404).json({ success: false, error: { message: 'Could not find a matching YouTube video.' } });
+    }
+
+    const videoUrl = `https://www.youtube.com/watch?v=${matchedVideo.id}`;
+
+    // ── Method 1: youtube-dl-exec ──
     try {
       const rawUrl = await youtubeDl(videoUrl, { getUrl: true, format: 'bestaudio' });
 
       if (rawUrl) {
         const streamUrl = rawUrl.trim();
-        const contentType = streamUrl.includes('webm') ? 'audio/webm' : 'audio/mp4';
-
-        const rangeHeader = req.headers.range;
-        const headers = { 'User-Agent': 'Mozilla/5.0' };
-        if (rangeHeader) headers['Range'] = rangeHeader;
-
-        const upstream = await axios.get(streamUrl, { responseType: 'stream', headers });
-
-        res.status(upstream.status);
-        res.setHeader('Content-Type', contentType);
-        res.setHeader('Accept-Ranges', 'bytes');
-        if (upstream.headers['content-length']) res.setHeader('Content-Length', upstream.headers['content-length']);
-        if (upstream.headers['content-range']) res.setHeader('Content-Range', upstream.headers['content-range']);
-
-        upstream.data.pipe(res);
-        return; // Done — youtube-dl-exec worked
+        // After extraction: set cache
+        urlCache.set(cacheKey, streamUrl);
+        return res.json({ url: streamUrl });
       }
     } catch (ytdlExecErr) {
       console.warn(`[/api/stream] youtube-dl-exec failed, falling back to ytdl-core: ${ytdlExecErr.message}`);
     }
 
-    // ── Method 2: @distube/ytdl-core (pure Node.js — works on Railway) ──
-    const audioStream = ytdl(videoUrl, {
-      filter: 'audioonly',
-      quality: 'highestaudio',
-      highWaterMark: 1 << 25, // 32MB buffer
-    });
-
-    res.setHeader('Content-Type', 'audio/webm');
-    res.setHeader('Transfer-Encoding', 'chunked');
-    res.setHeader('Cache-Control', 'no-cache');
-
-    req.on('close', () => audioStream.destroy());
-
-    audioStream.on('error', (err) => {
-      console.error(`[/api/stream] ytdl-core error for ${title} - ${artist}:`, err.message);
-      streamCache.delete(cacheKey);
-      if (!res.headersSent) {
-        return res.status(502).json({ success: false, error: { message: `Stream failed: ${err.message}` } });
-      }
-    });
-
-    audioStream.pipe(res);
-  } catch (err) {
-    console.error(`[/api/stream] Failed for ${title} - ${artist}:`, err.message);
-    if (!res.headersSent) {
-      return res.status(502).json({
-        success: false,
-        error: { message: `Stream extraction failed: ${err.message}` },
-      });
+    // ── Method 2: @distube/ytdl-core ──
+    const info = await ytdl.getInfo(videoUrl);
+    const format = ytdl.chooseFormat(info.formats, { filter: 'audioonly', quality: 'highestaudio' });
+    
+    if (format && format.url) {
+      urlCache.set(cacheKey, format.url);
+      return res.json({ url: format.url });
     }
+
+    return res.status(502).json({ success: false, error: { message: 'Could not extract audio URL.' } });
+  } catch (err) {
+    console.error(`[/api/stream] Failed for ID ${id} (${title} - ${artist}):`, err.message);
+    return res.status(502).json({
+      success: false,
+      error: { message: `Stream extraction failed: ${err.message}` },
+    });
   }
 });
 
