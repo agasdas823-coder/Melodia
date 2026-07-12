@@ -2,12 +2,14 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { usePlayer } from '../context/PlayerContext';
+import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../utils/config';
 
 export default function TrackRedirect() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { loadTrack, setNowPlayingOpen } = usePlayer();
+  const { playTrack, setNowPlayingOpen } = usePlayer();
+  const { user } = useAuth();
   const [error, setError] = useState(null);
   const hasFetched = useRef(false);
 
@@ -15,15 +17,29 @@ export default function TrackRedirect() {
     if (hasFetched.current) return;
     hasFetched.current = true;
 
-    const fetchAndPreview = async () => {
+    const fetchAndPlay = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/track/${id}`);
         if (res.data.success && res.data.song) {
-          // Load the track without playing it
-          loadTrack(res.data.song);
-          // Open the full-screen Now Playing panel
+          const song = res.data.song;
+
+          // If the shared track is old (no previewUrl), resolve via iTunes search
+          if (!song.previewUrl && !song.preview_url) {
+            try {
+              const q = `${song.title} ${song.artist || ''}`;
+              const searchRes = await axios.get(`${API_URL}/api/search?q=${encodeURIComponent(q)}&limit=1`);
+              if (searchRes.data.songs?.length > 0) {
+                const found = searchRes.data.songs[0];
+                song.previewUrl = found.previewUrl;
+                song.thumbnail = song.thumbnail || found.thumbnail;
+                song.coverArtUrl = song.coverArtUrl || found.coverArtUrl;
+              }
+            } catch (_) {}
+          }
+
+          // Play immediately and open the Now Playing panel
+          playTrack(song);
           setNowPlayingOpen(true);
-          // Navigate to explore so user has a page behind the panel
           navigate('/explore', { replace: true });
         } else {
           setError('Track not found or unavailable.');
@@ -33,8 +49,9 @@ export default function TrackRedirect() {
         setError('Failed to load track.');
       }
     };
-    fetchAndPreview();
-  }, [id, loadTrack, setNowPlayingOpen, navigate]);
+
+    fetchAndPlay();
+  }, [id, playTrack, setNowPlayingOpen, navigate, user]);
 
   if (error) {
     return (

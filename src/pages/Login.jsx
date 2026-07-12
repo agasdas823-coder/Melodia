@@ -129,7 +129,7 @@ export default function Login({ initialTab = "login" }) {
         throw new Error(data.error?.message || "Registration failed. Try again.");
       }
       login(data.user, data.token);
-      navigate("/explore");
+      navigate(from);
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
