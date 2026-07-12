@@ -1,7 +1,6 @@
 import express from 'express';
 import YouTubeSR from 'youtube-sr';
 import ytSearch from 'yt-search';
-import youtubeDl from 'youtube-dl-exec';
 import ytdl from '@distube/ytdl-core';
 import axios from 'axios';
 import NodeCache from 'node-cache';
@@ -461,21 +460,7 @@ router.get('/stream/:id', async (req, res, next) => {
 
     const videoUrl = `https://www.youtube.com/watch?v=${matchedVideo.id}`;
 
-    // ── Method 1: youtube-dl-exec ──
-    try {
-      const rawUrl = await youtubeDl(videoUrl, { getUrl: true, format: 'bestaudio' });
-
-      if (rawUrl) {
-        const streamUrl = rawUrl.trim();
-        // After extraction: set cache
-        urlCache.set(cacheKey, streamUrl);
-        return res.json({ url: streamUrl });
-      }
-    } catch (ytdlExecErr) {
-      console.warn(`[/api/stream] youtube-dl-exec failed, falling back to ytdl-core: ${ytdlExecErr.message}`);
-    }
-
-    // ── Method 2: @distube/ytdl-core ──
+    // ── Method: @distube/ytdl-core ──
     const info = await ytdl.getInfo(videoUrl);
     const format = ytdl.chooseFormat(info.formats, { filter: 'audioonly', quality: 'highestaudio' });
     

@@ -5,11 +5,14 @@ import musicRoutes from './routes/musicRoutes.js';
 
 const app = express();
 
-// Middlewares
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? true // Allow any origin in production, or set to specific railway domain
-    : ['http://localhost:5174', 'http://127.0.0.1:5174', 'http://localhost:5173'],
+  origin: [
+    'http://localhost:5174',
+    'http://127.0.0.1:5174',
+    'http://localhost:5173',
+    'https://melodia-wheat.vercel.app',
+    /melodia.*\.vercel\.app$/
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
