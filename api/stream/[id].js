@@ -1,7 +1,47 @@
-import ytdl from '@distube/ytdl-core';
+// Vercel serverless stream endpoint
+// Uses Piped API (open-source YouTube proxy) to avoid bot detection on Vercel IPs
 
-// In-memory cache for Vercel lambdas (cached during warm instances)
+import axios from 'axios';
+
+// In-memory cache (persists across warm lambda invocations)
 const urlCache = new Map();
+
+// Multiple Piped instances as fallbacks (community-run, no auth required)
+const PIPED_INSTANCES = [
+  'https://pipedapi.kavin.rocks',
+  'https://pipedapi.adminforge.de',
+  'https://piped-api.codeberg.page',
+  'https://api.piped.projectsegfau.lt',
+];
+
+async function getStreamUrlFromPiped(videoId) {
+  for (const instance of PIPED_INSTANCES) {
+    try {
+      const response = await axios.get(`${instance}/streams/${videoId}`, {
+        timeout: 8000,
+        headers: {
+          'User-Agent': 'Melodia/1.0.0',
+        },
+      });
+
+      const data = response.data;
+
+      // Find the best audio-only stream
+      const audioStreams = data.audioStreams || [];
+      // Prefer opus/webm, then aac/m4a, sorted by quality
+      const sorted = audioStreams.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+      const best = sorted[0];
+
+      if (best && best.url) {
+        return { url: best.url, source: instance };
+      }
+    } catch (err) {
+      console.warn(`[Piped] Instance ${instance} failed: ${err.message}`);
+      // Try next instance
+    }
+  }
+  return null;
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,40 +52,42 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const { id } = req.query; // dynamic route param from [id].js
-  const { title, artist } = req.query;
+  const { id } = req.query;
 
   const isYoutubeId = id && id.length === 11 && /^[a-zA-Z0-9_-]{11}$/.test(id);
 
-  if (!isYoutubeId && (!title || !artist)) {
-    return res.status(400).json({ success: false, error: { message: 'YouTube ID or title/artist parameters are required.' } });
+  if (!isYoutubeId) {
+    return res.status(400).json({ 
+      success: false, 
+      error: { message: 'A valid 11-character YouTube video ID is required.' } 
+    });
   }
 
   try {
-    const cacheKey = isYoutubeId ? `ytid:${id}` : `${artist}|${title}`.toLowerCase();
+    const cacheKey = `ytid:${id}`;
 
     if (urlCache.has(cacheKey)) {
-      console.log(`[Vercel Serverless Cache Hit] ${cacheKey}`);
-      return res.json({ url: urlCache.get(cacheKey) });
+      const cached = urlCache.get(cacheKey);
+      // Check if cached URL is still likely valid (stream URLs expire ~6hrs on YouTube)
+      if (cached.timestamp && Date.now() - cached.timestamp < 3 * 60 * 60 * 1000) {
+        console.log(`[Serverless Cache Hit] ${cacheKey}`);
+        return res.json({ url: cached.url });
+      }
+      urlCache.delete(cacheKey);
     }
 
-    const videoId = isYoutubeId ? id : null;
-    if (!videoId) {
-      return res.status(400).json({ success: false, error: { message: 'Extracting streams without direct YouTube ID is not supported on serverless functions.' } });
+    const result = await getStreamUrlFromPiped(id);
+
+    if (result && result.url) {
+      urlCache.set(cacheKey, { url: result.url, timestamp: Date.now() });
+      return res.json({ url: result.url, source: result.source });
     }
 
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    return res.status(502).json({ 
+      success: false, 
+      error: { message: 'Could not extract audio URL from any Piped instance.' } 
+    });
 
-    // Extract using @distube/ytdl-core
-    const info = await ytdl.getInfo(videoUrl);
-    const format = ytdl.chooseFormat(info.formats, { filter: 'audioonly', quality: 'highestaudio' });
-    
-    if (format && format.url) {
-      urlCache.set(cacheKey, format.url);
-      return res.json({ url: format.url });
-    }
-
-    return res.status(502).json({ success: false, error: { message: 'Could not extract audio URL.' } });
   } catch (err) {
     console.error(`[Serverless Stream Error] Failed for ID ${id}:`, err.message);
     return res.status(502).json({
