@@ -21,7 +21,6 @@ const app = express();
 
 const allowedOrigins = [
   'https://melodia-wheat.vercel.app',
-  'https://melody-production-0d59.up.railway.app',
   'https://melody-production-ela0.up.railway.app',
   'http://localhost:5173',
   'http://localhost:5174',
