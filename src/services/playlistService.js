@@ -96,7 +96,24 @@ export async function getPlaylist(id, localPlaylists = []) {
     }
   }
 
-  // 4. Fallback to empty playlist
+  // 4. Try public playlist API for internal IDs
+  if (isInternalId) {
+    try {
+      console.log('🔄 Trying public playlist API:', id);
+      const response = await fetch(`${API_URL}/api/playlists/public/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.playlist) {
+          console.log('✅ Got public playlist from API');
+          return { success: true, playlist: data.playlist, source: 'public' };
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Public playlist fetch error:', error.message);
+    }
+  }
+
+  // 5. Fallback to empty playlist
   console.log('⚠️ Falling back to empty playlist');
   return {
     success: false,

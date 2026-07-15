@@ -1,5 +1,5 @@
 // src/App.jsx
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AppLayout from './components/layout/AppLayout';
 import Library from './pages/Library';
@@ -21,7 +21,16 @@ function ProtectedRoute({ element }) {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  return element;
+}
+
+function SharedPlaylistRoute() {
+  const { user } = useAuth();
+  const { id } = useParams();
+  
+  if (user) {
+    return <Navigate to={`/playlist/${id}`} replace />;
+  }
+  return <PublicPlaylistView />;
 }
 
 function App() {
@@ -62,7 +71,7 @@ function App() {
           <Route path="/yt-playlist/:id" element={<YTPlaylistDetail />} />
         </Route>
 
-        <Route path="/shared-playlist/:id" element={<PublicPlaylistView />} />
+        <Route path="/shared-playlist/:id" element={<SharedPlaylistRoute />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to={user ? "/" : "/opening"} replace />} />
