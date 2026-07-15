@@ -2,7 +2,7 @@
 nixPkgs = ["...", "nodejs", "python3", "ffmpeg"]
 
 [phases.build]
-cmds = ["npm ci", "pip install --break-system-packages ytmusicapi yt-dlp || pip install ytmusicapi yt-dlp"]
+cmds = ["npm install", "pip install --break-system-packages ytmusicapi yt-dlp || pip install ytmusicapi yt-dlp"]
 
 [phases.start]
 cmd = "npm run start"

@@ -87,6 +87,15 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🩺 Health check: http://localhost:${PORT}/health`);
 });
 
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use. Stop the other process or choose a different PORT.`);
+  } else {
+    console.error('❌ Server error:', err);
+  }
+  process.exit(1);
+});
+
 process.on('unhandledRejection', (err) => {
   console.error(`❌ Error: ${err?.message || err}`);
   server.close(() => process.exit(1));

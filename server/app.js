@@ -19,14 +19,24 @@ import playlistRoutes from './routes/playlists.js';
 
 const app = express();
 
-const allowedOrigins = [
+const defaultOrigins = [
+  process.env.FRONTEND_URL,
   'https://melodia-wheat.vercel.app',
   'https://melody-production-ela0.up.railway.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
-];
+].filter(Boolean);
+
+const envOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : [];
+
+const allowedOrigins = Array.from(new Set([
+  ...defaultOrigins,
+  ...envOrigins,
+]));
 
 const corsOptions = {
   origin: function (origin, callback) {
