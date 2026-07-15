@@ -32,6 +32,15 @@ const MOOD_QUERIES = {
   "Dreamy": "dreamy ambient ethereal music",
 };
 
+const RANDOM_TRENDING_QUERIES = [
+  'new famous pop hits 2026',
+  'latest chart-topping songs',
+  'fresh hot singles',
+  'new released music hits',
+  'popular new songs this week',
+  'top viral music 2026',
+];
+
 export default function Explore() {
   const { currentTrack, isPlaying, playTrack, togglePlay, toggleLike, isLiked, recentTracks, createPlaylist, setNowPlayingOpen, setPreviewTrack } = usePlayer();
   const [songs, setSongs] = useState([]);
@@ -115,24 +124,39 @@ export default function Explore() {
   const fetchSongs = useCallback(async () => {
     setLoading(true);
     try {
-      let query = 'top hits 2024';
+      const randomTrendingQuery = RANDOM_TRENDING_QUERIES[Math.floor(Math.random() * RANDOM_TRENDING_QUERIES.length)];
+      let query = randomTrendingQuery;
 
       if (activeFilterTab === "genre" && selectedSubFilter) {
-        query = selectedSubFilter;
+        query = `${selectedSubFilter} hits`;
       } else if (activeFilterTab === "artist" && selectedSubFilter) {
-        query = selectedSubFilter;
+        query = `${selectedSubFilter} songs`;
       } else if (activeFilterTab === "mood" && selectedSubFilter) {
-        query = selectedSubFilter;
+        query = `${MOOD_QUERIES[selectedSubFilter] || selectedSubFilter}`;
       }
 
       const response = await musicService.search(query, { limit: 20 });
-      setSongs(response.data.songs || []);
+      const fetchedSongs = response.data.songs || [];
+
+      if (fetchedSongs.length < 6) {
+        setSongs([
+          ...fetchedSongs,
+          { id: 'fallback-1', title: 'Flowers', artist: 'Miley Cyrus', thumbnail: 'https://i.ytimg.com/vi/mlxq2JUue_I/hqdefault.jpg', duration: 200, source: 'youtube' },
+          { id: 'fallback-2', title: 'Calm Down', artist: 'Rema', thumbnail: 'https://i.ytimg.com/vi/uxpDa-c-4Mc/hqdefault.jpg', duration: 210, source: 'youtube' },
+          { id: 'fallback-3', title: 'Anti-Hero', artist: 'Taylor Swift', thumbnail: 'https://i.ytimg.com/vi/b1N7wE4wTis/hqdefault.jpg', duration: 220, source: 'youtube' },
+        ].slice(0, 6));
+      } else {
+        setSongs(fetchedSongs);
+      }
     } catch (err) {
       console.error("Failed to fetch songs:", err);
-      // Fallback local mock list if offline or api fails
       setSongs([
-        { id: "s1", title: "Kind of Blue", artist: "Miles Davis", genre: "Jazz", duration: 320, coverArtUrl: "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=300&h=300&fit=crop&auto=format", youtubeVideoId: "F3W_alqaHY0" },
-        { id: "s2", title: "So What", artist: "Miles Davis", genre: "Jazz", duration: 560, coverArtUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop&auto=format", youtubeVideoId: "ylXk1gKBfM8" },
+        { id: "s1", title: "Flowers", artist: "Miley Cyrus", thumbnail: "https://i.ytimg.com/vi/mlxq2JUue_I/hqdefault.jpg", duration: 200, source: 'youtube' },
+        { id: "s2", title: "Calm Down", artist: "Rema", thumbnail: "https://i.ytimg.com/vi/uxpDa-c-4Mc/hqdefault.jpg", duration: 210, source: 'youtube' },
+        { id: "s3", title: "Anti-Hero", artist: "Taylor Swift", thumbnail: "https://i.ytimg.com/vi/b1N7wE4wTis/hqdefault.jpg", duration: 220, source: 'youtube' },
+        { id: "s4", title: "Kill Bill", artist: "SZA", thumbnail: "https://i.ytimg.com/vi/F0OeMAeuo7E/hqdefault.jpg", duration: 180, source: 'youtube' },
+        { id: "s5", title: "Calm Down", artist: "Selena Gomez", thumbnail: "https://i.ytimg.com/vi/34Na4j8AVgA/hqdefault.jpg", duration: 215, source: 'youtube' },
+        { id: "s6", title: "Die For You", artist: "The Weeknd", thumbnail: "https://i.ytimg.com/vi/XLUe1t63qms/hqdefault.jpg", duration: 240, source: 'youtube' },
       ]);
     } finally {
       setLoading(false);
