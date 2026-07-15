@@ -4,16 +4,16 @@ import { useAuth } from './context/AuthContext';
 import AppLayout from './components/layout/AppLayout';
 import Library from './pages/Library';
 import Search from './pages/Search';
-import PlaylistDetail from './pages/playlistdetail';
-import YTPlaylistDetail from './pages/ytplaylistdetail';
-import Explore from './pages/explore';
-import Recents from './pages/recents';
-import AccountOverview from './pages/accountOverview';
-import Login from './pages/login';
-import Signup from './pages/signup';
+import PlaylistDetail from './pages/PlaylistDetail';
+import YTPlaylistDetail from './pages/YTPlaylistDetail';
+import Explore from './pages/Explore';
+import Recents from './pages/Recents';
+import AccountOverview from './pages/AccountOverview';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
 import Opening from './pages/Opening';
-import Admin from './pages/admin';
-import TrackRedirect from './pages/trackredirect';
+import Admin from './pages/Admin';
+import TrackRedirect from './pages/TrackRedirect';
 import PublicPlaylistView from './pages/PublicPlaylistView';
 
 function ProtectedRoute({ element }) {
