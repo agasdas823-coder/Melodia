@@ -54,7 +54,7 @@ if (process.env.MONGODB_URI) {
 
 import app from './app.js';
 
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 8080;
 
 async function connectDatabase() {
   if (!process.env.MONGODB_URI) {

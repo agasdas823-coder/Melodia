@@ -74,41 +74,30 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/spotify', spotifyRoutes);
-app.use('/api', musicRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api', musicRoutes);
 app.use('/api', playlistRoutes);
 
-import fs from 'fs';
-
-// Health check endpoint for Railway/Render
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date(),
-    env: {
-      groq: !!process.env.GROQ_API_KEY,
-      youtube: !!process.env.YOUTUBE_API_KEY,
-      port: process.env.PORT
-    }
+app.use('/api/*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: {
+      code: 'API_ROUTE_NOT_FOUND',
+      message: `API route not found: ${req.originalUrl}`,
+    },
   });
 });
 
-// Serve static frontend files in production
-app.use(express.static(path.join(__dirname, '../dist')));
-
-// Fallback all other routes to index.html (SPA routing)
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) {
-    return next();
-  }
-  const indexPath = path.join(__dirname, '../dist/index.html');
-  if (fs.existsSync(indexPath)) {
-    return res.sendFile(indexPath);
-  }
-  res.status(200).send('Melodia API is running');
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: {
+      code: 'ROUTE_NOT_FOUND',
+      message: `Route not found: ${req.originalUrl}`,
+    },
+  });
 });
 
-// Centralized error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.statusCode || 500).json({
@@ -116,7 +105,7 @@ app.use((err, req, res, next) => {
     error: {
       code: err.code || 'SERVER_ERROR',
       message: err.message || 'Internal Server Error',
-    }
+    },
   });
 });
 
