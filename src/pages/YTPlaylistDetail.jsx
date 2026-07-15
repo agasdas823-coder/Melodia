@@ -18,15 +18,27 @@ export default function YTPlaylistDetail() {
     const fetchPlaylist = async () => {
       try {
         setLoading(true);
+        console.log('🔄 Fetching YouTube playlist:', id, 'from', `${API_URL}/api/youtube-playlist/${id}`);
         const res = await fetch(`${API_URL}/api/youtube-playlist/${id}`);
-        if (!res.ok) throw new Error('Failed to fetch playlist');
+        
+        console.log('📊 Response status:', res.status, res.statusText);
+        
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          console.error('❌ API error:', errorData);
+          throw new Error(errorData.error?.message || `Failed to fetch playlist (${res.status})`);
+        }
+        
         const data = await res.json();
+        console.log('✅ Got playlist data:', data);
+        
         if (data.success) {
           setPlaylist(data.playlist);
         } else {
           throw new Error(data.error?.message || 'Failed to fetch playlist');
         }
       } catch (err) {
+        console.error('❌ Fetch error:', err);
         setError(err.message);
       } finally {
         setLoading(false);

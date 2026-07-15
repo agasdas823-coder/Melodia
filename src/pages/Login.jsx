@@ -4,6 +4,7 @@ import { Eye, EyeOff, Music2, Mail, Lock, User, ArrowRight } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { API_URL } from "../utils/config";
+import { authService } from "../services/apiService";
 
 function MelodiLogo() {
   return (
@@ -119,15 +120,8 @@ export default function Login({ initialTab = "login" }) {
     setLoading(true);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error?.message || "Registration failed. Try again.");
-      }
+      const res = await authService.register({ fullName, email, password });
+      const data = res.data;
       login(data.user, data.token);
       navigate(from);
     } catch (err) {

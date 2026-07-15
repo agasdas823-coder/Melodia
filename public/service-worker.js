@@ -1,8 +1,5 @@
 const CACHE_NAME = 'music-stream-cache-v1';
-// We only want to cache specific requests, like our /api/stream/ URLs.
-const CACHE_URLS = [
-  '/api/stream/'
-];
+const CACHE_URLS = [];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

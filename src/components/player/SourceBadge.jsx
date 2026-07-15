@@ -4,8 +4,9 @@ import React from 'react';
  * SourceBadge
  * Shows a small pill indicating whether audio is coming from JioSaavn or YouTube.
  */
-export default function SourceBadge({ source }) {
+export default function SourceBadge({ source, usingFallback = false }) {
   if (!source || source === 'cache') return null;
+  if (source === 'spotify' && !usingFallback) return null;
 
   const configs = {
     jiosaavn: { label: 'JioSaavn', color: '#1DB954' },

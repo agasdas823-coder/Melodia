@@ -1,24 +1,63 @@
+// server/server.js
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import fs from 'fs'; // ✅ ADD THIS
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// Load .env from server/ dir first, then fall back to parent (local dev)
-dotenv.config({ path: path.resolve(__dirname, '.env') });
-dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+
+// ── Debug: Check if .env file exists ──
+const envPath = path.resolve(__dirname, '.env');
+console.log('🔍 Looking for .env at:', envPath);
+console.log('🔍 .env file exists?', fs.existsSync(envPath));
+
+// ── Debug: Read .env file content (without exposing secrets) ──
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  const lines = envContent.split('\n').filter(line => line.trim() && !line.startsWith('#'));
+  console.log('🔍 .env file contains', lines.length, 'configurations');
+  lines.forEach(line => {
+    const [key] = line.split('=');
+    console.log(`   - ${key}: ${key.includes('KEY') ? '✅ Set' : 'Present'}`);
+  });
+}
+
+// ── Load .env from the server directory ──
+dotenv.config({ 
+  path: path.resolve(__dirname, '.env') 
+});
+
+// ── Also try loading from parent directory (fallback) ──
+dotenv.config({ 
+  path: path.resolve(__dirname, '..', '.env') 
+});
+
+// ── Verify environment variables are loaded ──
+console.log('\n✅ Environment variables loaded:');
+console.log('  GROQ_API_KEY:', process.env.GROQ_API_KEY ? '✅ Set' : '❌ Missing');
+console.log('  YOUTUBE_API_KEY:', process.env.YOUTUBE_API_KEY ? '✅ Set' : '❌ Missing');
+console.log('  PORT:', process.env.PORT || 5002);
+
+// ── Debug: Show first few characters of keys (for verification) ──
+if (process.env.YOUTUBE_API_KEY) {
+  console.log('  YOUTUBE_API_KEY starts with:', process.env.YOUTUBE_API_KEY.substring(0, 10) + '...');
+}
+if (process.env.GROQ_API_KEY) {
+  console.log('  GROQ_API_KEY starts with:', process.env.GROQ_API_KEY.substring(0, 10) + '...');
+}
 
 import app from './app.js';
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5002;
 
 const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`\n🚀 Server running on port ${PORT}`);
+  console.log(`📍 http://localhost:${PORT}`);
+  console.log(`🩺 Health check: http://localhost:${PORT}/health`);
 });
 
-// Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
-  console.log(`Error: ${err.message}`);
-  // Close server & exit process
+  console.log(`❌ Error: ${err.message}`);
   server.close(() => process.exit(1));
 });

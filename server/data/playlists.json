@@ -1,0 +1,417 @@
+[
+  {
+    "id": "pl-1784117704120",
+    "name": "Shared Mix",
+    "description": "Public playlist",
+    "genre": "",
+    "coverImage": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+    "isPrivate": false,
+    "shareUrl": "http://localhost:5173/shared-playlist/pl-1784117704120",
+    "tags": [
+      "chill"
+    ],
+    "songs": [],
+    "createdAt": "2026-07-15T12:15:04.121Z"
+  },
+  {
+    "id": "pl-1784118008777",
+    "name": "Shared Mix",
+    "description": "Public playlist",
+    "genre": "",
+    "coverImage": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+    "isPrivate": false,
+    "createdBy": "Unknown",
+    "shareUrl": "http://localhost:5173/shared-playlist/pl-1784118008777",
+    "tags": [
+      "chill"
+    ],
+    "songs": [],
+    "createdAt": "2026-07-15T12:20:08.778Z"
+  },
+  {
+    "id": "pl-1784118484464",
+    "name": "Michael",
+    "description": "asdasdadasd",
+    "genre": "",
+    "coverImage": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+    "isPrivate": false,
+    "createdBy": "Unknown",
+    "shareUrl": "http://localhost:5002/shared-playlist/pl-1784118484464",
+    "tags": [],
+    "songs": [],
+    "createdAt": "2026-07-15T12:28:04.465Z"
+  },
+  {
+    "id": "pl-1784119471176",
+    "name": "Michael Jackson",
+    "description": "",
+    "genre": "Pop",
+    "coverImage": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+    "isPrivate": false,
+    "createdBy": "Unknown",
+    "shareUrl": "http://localhost:5002/shared-playlist/pl-1784119471176",
+    "tags": [],
+    "songs": [],
+    "createdAt": "2026-07-15T12:44:31.177Z"
+  },
+  {
+    "id": "test-share",
+    "name": "Test",
+    "description": "",
+    "genre": "",
+    "coverImage": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+    "isPrivate": false,
+    "createdBy": "tester",
+    "shareUrl": "http://localhost:5174/shared-playlist/test-share",
+    "tags": [],
+    "songs": [],
+    "createdAt": "2026-07-15T13:03:42.335Z"
+  },
+  {
+    "id": "pl-1784119471184",
+    "name": "Playlist not found",
+    "description": "The playlist could not be loaded.",
+    "genre": "",
+    "coverImage": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+    "isPrivate": false,
+    "createdBy": "agasdas",
+    "shareUrl": "http://localhost:5174/shared-playlist/pl-1784119471184",
+    "tags": [],
+    "songs": [],
+    "createdAt": "2026-07-15T13:26:17.401Z"
+  },
+  {
+    "id": "pl-1784124073559",
+    "name": "The Best of Michael Jackson",
+    "description": "Imported from search results",
+    "genre": "",
+    "coverImage": "https://i.ytimg.com/vi/Zi_XLOBDo_Y/hqdefault.jpg",
+    "isPrivate": false,
+    "createdBy": "YouTube",
+    "shareUrl": "http://localhost:5174/shared-playlist/pl-1784124073559",
+    "tags": [],
+    "songs": [
+      {
+        "id": "Zi_XLOBDo_Y",
+        "title": "Michael Jackson - Billie Jean (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/Zi_XLOBDo_Y/hqdefault.jpg",
+        "duration": 296,
+        "duration_string": "4:56",
+        "url": "https://www.youtube.com/watch?v=Zi_XLOBDo_Y",
+        "type": "song"
+      },
+      {
+        "id": "oRdxUFDoQe0",
+        "title": "Michael Jackson - Beat It (Official 4K Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/oRdxUFDoQe0/hqdefault.jpg",
+        "duration": 299,
+        "duration_string": "4:59",
+        "url": "https://www.youtube.com/watch?v=oRdxUFDoQe0",
+        "type": "song"
+      },
+      {
+        "id": "YNzuiRuQNYY",
+        "title": "Michael Jackson - Human Nature (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/YNzuiRuQNYY/hqdefault.jpg",
+        "duration": 267,
+        "duration_string": "4:27",
+        "url": "https://www.youtube.com/watch?v=YNzuiRuQNYY",
+        "type": "song"
+      },
+      {
+        "id": "yURRmWtbTbo",
+        "title": "Michael Jackson - Don't Stop 'Til You Get Enough (Official Video - Upscaled)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/yURRmWtbTbo/hqdefault.jpg",
+        "duration": 254,
+        "duration_string": "4:14",
+        "url": "https://www.youtube.com/watch?v=yURRmWtbTbo",
+        "type": "song"
+      },
+      {
+        "id": "Y_8mUx4VOmo",
+        "title": "Michael Jackson - Chicago (Official Audio)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/Y_8mUx4VOmo/hqdefault.jpg",
+        "duration": 248,
+        "duration_string": "4:08",
+        "url": "https://www.youtube.com/watch?v=Y_8mUx4VOmo",
+        "type": "song"
+      },
+      {
+        "id": "PivWY9wn5ps",
+        "title": "Michael Jackson - Man In The Mirror (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/PivWY9wn5ps/hqdefault.jpg",
+        "duration": 304,
+        "duration_string": "5:04",
+        "url": "https://www.youtube.com/watch?v=PivWY9wn5ps",
+        "type": "song"
+      },
+      {
+        "id": "yUi_S6YWjZw",
+        "title": "Michael Jackson - Dirty Diana (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/yUi_S6YWjZw/hqdefault.jpg",
+        "duration": 306,
+        "duration_string": "5:06",
+        "url": "https://www.youtube.com/watch?v=yUi_S6YWjZw",
+        "type": "song"
+      },
+      {
+        "id": "h_D3VFfhvs4",
+        "title": "Michael Jackson - Smooth Criminal (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/h_D3VFfhvs4/hqdefault.jpg",
+        "duration": 566,
+        "duration_string": "9:26",
+        "url": "https://www.youtube.com/watch?v=h_D3VFfhvs4",
+        "type": "song"
+      },
+      {
+        "id": "QNJL6nfu__Q",
+        "title": "Michael Jackson - They Don't Care About Us",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/QNJL6nfu__Q/hqdefault.jpg",
+        "duration": 282,
+        "duration_string": "4:42",
+        "url": "https://www.youtube.com/watch?v=QNJL6nfu__Q",
+        "type": "song"
+      },
+      {
+        "id": "f3V-7DEAgdc",
+        "title": "Michael Jackson - Liberian Girl (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/f3V-7DEAgdc/hqdefault.jpg",
+        "duration": 230,
+        "duration_string": "3:50",
+        "url": "https://www.youtube.com/watch?v=f3V-7DEAgdc",
+        "type": "song"
+      },
+      {
+        "id": "nhcG9wqn0gU",
+        "title": "Michael Jackson - Heal the World (2020)",
+        "artist": "Michael Jackson",
+        "thumbnail": "https://i.ytimg.com/vi/nhcG9wqn0gU/hqdefault.jpg",
+        "duration": 390,
+        "duration_string": "6:30",
+        "url": "https://www.youtube.com/watch?v=nhcG9wqn0gU",
+        "type": "song"
+      },
+      {
+        "id": "TDVlDUAIz5k",
+        "title": "Michael Jackson - Heaven Can Wait (Official Audio)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/TDVlDUAIz5k/hqdefault.jpg",
+        "duration": 291,
+        "duration_string": "4:51",
+        "url": "https://www.youtube.com/watch?v=TDVlDUAIz5k",
+        "type": "song"
+      },
+      {
+        "id": "F2AitTPI5U0",
+        "title": "Michael Jackson - Black Or White (Official Video - Shortened Version)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/F2AitTPI5U0/hqdefault.jpg",
+        "duration": 383,
+        "duration_string": "6:23",
+        "url": "https://www.youtube.com/watch?v=F2AitTPI5U0",
+        "type": "song"
+      },
+      {
+        "id": "sOnqjkJTMaA",
+        "title": "Michael Jackson - Thriller (Official 4K Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/sOnqjkJTMaA/hqdefault.jpg",
+        "duration": 822,
+        "duration_string": "13:42",
+        "url": "https://www.youtube.com/watch?v=sOnqjkJTMaA",
+        "type": "song"
+      },
+      {
+        "id": "oG08ukJPtR8",
+        "title": "Michael Jackson, Justin Timberlake - Love Never Felt So Good (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/oG08ukJPtR8/hqdefault.jpg",
+        "duration": 247,
+        "duration_string": "4:07",
+        "url": "https://www.youtube.com/watch?v=oG08ukJPtR8",
+        "type": "song"
+      },
+      {
+        "id": "dsUXAEzaC3Q",
+        "title": "Michael Jackson - Bad (Shortened Version)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/dsUXAEzaC3Q/hqdefault.jpg",
+        "duration": 260,
+        "duration_string": "4:20",
+        "url": "https://www.youtube.com/watch?v=dsUXAEzaC3Q",
+        "type": "song"
+      },
+      {
+        "id": "LeiFF0gvqcc",
+        "title": "Michael Jackson - Remember the Time (Official Video - Upscaled)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/LeiFF0gvqcc/hqdefault.jpg",
+        "duration": 559,
+        "duration_string": "9:19",
+        "url": "https://www.youtube.com/watch?v=LeiFF0gvqcc",
+        "type": "song"
+      },
+      {
+        "id": "sFvENQBc-F8",
+        "title": "Michael Jackson - Smooth Criminal (Official Video - Shortened Version)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/sFvENQBc-F8/hqdefault.jpg",
+        "duration": 251,
+        "duration_string": "4:11",
+        "url": "https://www.youtube.com/watch?v=sFvENQBc-F8",
+        "type": "song"
+      },
+      {
+        "id": "5X-Mrc2l1d0",
+        "title": "Michael Jackson - Rock With You (Official Video - Upscaled)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/5X-Mrc2l1d0/hqdefault.jpg",
+        "duration": 202,
+        "duration_string": "3:22",
+        "url": "https://www.youtube.com/watch?v=5X-Mrc2l1d0",
+        "type": "song"
+      },
+      {
+        "id": "g4tpuu-Up90",
+        "title": "Michael Jackson - You Rock My World (Official Video - Shortened Version)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/g4tpuu-Up90/hqdefault.jpg",
+        "duration": 345,
+        "duration_string": "5:45",
+        "url": "https://www.youtube.com/watch?v=g4tpuu-Up90",
+        "type": "song"
+      },
+      {
+        "id": "HzZ_urpj4As",
+        "title": "Michael Jackson - The Way You Make Me Feel (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/HzZ_urpj4As/hqdefault.jpg",
+        "duration": 404,
+        "duration_string": "6:44",
+        "url": "https://www.youtube.com/watch?v=HzZ_urpj4As",
+        "type": "song"
+      },
+      {
+        "id": "JbHI1yI1Ndk",
+        "title": "Michael Jackson - Jam (Official Video - Upscaled)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/JbHI1yI1Ndk/hqdefault.jpg",
+        "duration": 480,
+        "duration_string": "8:00",
+        "url": "https://www.youtube.com/watch?v=JbHI1yI1Ndk",
+        "type": "song"
+      },
+      {
+        "id": "0P4A1K4lXDo",
+        "title": "Michael Jackson, Janet Jackson - Scream (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/0P4A1K4lXDo/hqdefault.jpg",
+        "duration": 288,
+        "duration_string": "4:48",
+        "url": "https://www.youtube.com/watch?v=0P4A1K4lXDo",
+        "type": "song"
+      },
+      {
+        "id": "crbFmpezO4A",
+        "title": "Michael Jackson - Leave Me Alone (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/crbFmpezO4A/hqdefault.jpg",
+        "duration": 279,
+        "duration_string": "4:39",
+        "url": "https://www.youtube.com/watch?v=crbFmpezO4A",
+        "type": "song"
+      },
+      {
+        "id": "zjGtTUfPcI4",
+        "title": "Michael Jackson - Hollywood Tonight (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/zjGtTUfPcI4/hqdefault.jpg",
+        "duration": 242,
+        "duration_string": "4:02",
+        "url": "https://www.youtube.com/watch?v=zjGtTUfPcI4",
+        "type": "song"
+      },
+      {
+        "id": "4qLY0vbrT8Q",
+        "title": "Michael Jackson - In the Closet (Official Video - Upscaled)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/4qLY0vbrT8Q/hqdefault.jpg",
+        "duration": 367,
+        "duration_string": "6:07",
+        "url": "https://www.youtube.com/watch?v=4qLY0vbrT8Q",
+        "type": "song"
+      },
+      {
+        "id": "6DQJPL9Yuq0",
+        "title": "Michael Jackson - She's Out of My Life (Official Video - Upscaled)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/6DQJPL9Yuq0/hqdefault.jpg",
+        "duration": 216,
+        "duration_string": "3:36",
+        "url": "https://www.youtube.com/watch?v=6DQJPL9Yuq0",
+        "type": "song"
+      },
+      {
+        "id": "BWf-eARnf6U",
+        "title": "Michael Jackson - Heal The World (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/BWf-eARnf6U/hqdefault.jpg",
+        "duration": 383,
+        "duration_string": "6:23",
+        "url": "https://www.youtube.com/watch?v=BWf-eARnf6U",
+        "type": "song"
+      },
+      {
+        "id": "pAyKJAtDNCw",
+        "title": "Michael Jackson - You Are Not Alone (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/pAyKJAtDNCw/hqdefault.jpg",
+        "duration": 336,
+        "duration_string": "5:36",
+        "url": "https://www.youtube.com/watch?v=pAyKJAtDNCw",
+        "type": "song"
+      },
+      {
+        "id": "8vwHQNQ88cM",
+        "title": "Michael Jackson - Another Part of Me (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/8vwHQNQ88cM/hqdefault.jpg",
+        "duration": 286,
+        "duration_string": "4:46",
+        "url": "https://www.youtube.com/watch?v=8vwHQNQ88cM",
+        "type": "song"
+      },
+      {
+        "id": "c3_NntYhzV4",
+        "title": "Michael Jackson - Blood On The Dance Floor (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/c3_NntYhzV4/hqdefault.jpg",
+        "duration": 257,
+        "duration_string": "4:17",
+        "url": "https://www.youtube.com/watch?v=c3_NntYhzV4",
+        "type": "song"
+      },
+      {
+        "id": "XAi3VTSdTxU",
+        "title": "Michael Jackson - Earth Song (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/XAi3VTSdTxU/hqdefault.jpg",
+        "duration": 405,
+        "duration_string": "6:45",
+        "url": "https://www.youtube.com/watch?v=XAi3VTSdTxU",
+        "type": "song"
+      }
+    ],
+    "createdAt": "2026-07-15T14:13:07.271Z"
+  }
+]

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import axios from "axios";
 import { usePlayer } from "../context/PlayerContext";
+import { musicService } from "../services/apiService";
 import { Sparkles, Heart, Play, Pause, ChevronRight, TrendingUp, Mic, Award, Plus, Music } from "lucide-react";
 import { motion } from "framer-motion";
 import AddToPlaylistDropdown from "../components/playlist/AddToPlaylistDropdown";
@@ -45,7 +45,7 @@ export default function Explore() {
   useEffect(() => {
     const fetchNewReleases = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=top+hits&limit=10`);
+        const res = await musicService.search('top hits', { limit: 10 });
         setNewReleaseSongs(res.data.songs || []);
       } catch (_) {
         setNewReleaseSongs([]);
@@ -115,18 +115,17 @@ export default function Explore() {
   const fetchSongs = useCallback(async () => {
     setLoading(true);
     try {
-      let endpoint = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=top+hits+2024&limit=20`;
+      let query = 'top hits 2024';
 
       if (activeFilterTab === "genre" && selectedSubFilter) {
-        endpoint = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=${encodeURIComponent(selectedSubFilter)}&limit=20`;
+        query = selectedSubFilter;
       } else if (activeFilterTab === "artist" && selectedSubFilter) {
-        endpoint = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=${encodeURIComponent(selectedSubFilter)}&limit=20`;
+        query = selectedSubFilter;
       } else if (activeFilterTab === "mood" && selectedSubFilter) {
-        const moodQuery = selectedSubFilter;
-        endpoint = `${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=${encodeURIComponent(moodQuery)}&limit=20`;
+        query = selectedSubFilter;
       }
 
-      const response = await axios.get(endpoint);
+      const response = await musicService.search(query, { limit: 20 });
       setSongs(response.data.songs || []);
     } catch (err) {
       console.error("Failed to fetch songs:", err);
@@ -193,7 +192,7 @@ export default function Explore() {
   const handleAddPlaylist = async (item, e) => {
     e.stopPropagation();
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/youtube-playlist/${item.id}`);
+      const response = await musicService.getPlaylist(item.id);
       const data = response.data;
       createPlaylist(item.title, "Imported from YouTube", item.thumbnail || item.thumbnail_medium, data.playlist?.songs || [], "YouTube");
     } catch (err) {

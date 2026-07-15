@@ -1,14 +1,26 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { usePlayer } from '../../context/PlayerContext';
+import { lyricsService } from '../../services/apiService';
+import { parseLyrics, getActiveLyricIndex } from '../../utils/lyricsParser';
 
 export default function LyricsModal() {
-  const { currentTrack, lyricsOpen, setLyricsOpen, isPlaying, usingFallback, lyricsCache } = usePlayer();
+  const { currentTrack, lyricsOpen, setLyricsOpen, isPlaying, usingFallback, lyricsCache, progress } = usePlayer();
 
   const [lyrics, setLyrics] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastFetchedId, setLastFetchedId] = useState(null);
   const lyricsRef = useRef(null);
+
+  const parsedLyrics = useMemo(() => {
+    if (!lyrics) return [];
+    if (Array.isArray(lyrics)) return lyrics;
+    return parseLyrics(lyrics);
+  }, [lyrics]);
+
+  const activeLyricIndex = useMemo(() => {
+    return getActiveLyricIndex(parsedLyrics, progress);
+  }, [parsedLyrics, progress]);
 
   // Fetch lyrics whenever the modal opens or track changes
   useEffect(() => {
@@ -32,16 +44,19 @@ export default function LyricsModal() {
       return;
     }
 
-    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/lyrics?title=${encodeURIComponent(currentTrack.title)}&artist=${encodeURIComponent(currentTrack.artist)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.lyrics) {
+    lyricsService.getLyrics(currentTrack.title, currentTrack.artist)
+      .then((response) => {
+        const data = response.data;
+        if (data.success && data.lyrics) {
           setLyrics(data.lyrics.trim());
         } else {
           setError('no_lyrics');
         }
       })
-      .catch(() => setError('fetch_error'))
+      .catch((error) => {
+        console.error('Error fetching lyrics:', error);
+        setError('fetch_error');
+      })
       .finally(() => setLoading(false));
   }, [lyricsOpen, currentTrack, lyricsCache, lastFetchedId]);
 
@@ -57,6 +72,13 @@ export default function LyricsModal() {
     document.body.style.overflow = lyricsOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [lyricsOpen]);
+
+  useEffect(() => {
+    if (!lyricsOpen || activeLyricIndex < 0 || !lyricsRef.current) return;
+
+    const target = lyricsRef.current.querySelector(`[data-lyric-index="${activeLyricIndex}"]`);
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [activeLyricIndex, lyricsOpen]);
 
   if (!currentTrack) return null;
 
@@ -183,20 +205,28 @@ export default function LyricsModal() {
               </div>
             )}
 
-            {!loading && lyrics && (
+            {!loading && parsedLyrics.length > 0 && (
               <div className="pb-8">
-                {lyrics.split('\n').map((line, i) => (
-                  <p
-                    key={i}
-                    className={`leading-relaxed transition-colors duration-300 ${
-                      line.trim() === ''
-                        ? 'mb-5'
-                        : 'text-white/85 text-base md:text-lg font-medium mb-1 hover:text-white cursor-default'
-                    }`}
-                  >
-                    {line || '\u00A0'}
-                  </p>
-                ))}
+                {parsedLyrics.map((line, i) => {
+                  const isActive = i === activeLyricIndex;
+                  const hasText = !!line.text?.trim();
+
+                  return (
+                    <p
+                      key={`${line.text || 'blank'}-${i}`}
+                      data-lyric-index={i}
+                      className={`leading-relaxed transition-all duration-300 ${
+                        !hasText
+                          ? 'mb-5 h-4'
+                          : isActive
+                            ? 'text-white text-lg md:text-xl font-semibold mb-3'
+                            : 'text-white/55 text-base md:text-lg font-medium mb-1 hover:text-white/80 cursor-default'
+                      }`}
+                    >
+                      {hasText ? line.text : '\u00A0'}
+                    </p>
+                  );
+                })}
               </div>
             )}
           </div>

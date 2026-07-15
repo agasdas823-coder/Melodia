@@ -1,7 +1,21 @@
+// server/app.js
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ── Load .env early ──
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
 import authRoutes from './routes/authRoutes.js';
 import musicRoutes from './routes/musicRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
+import spotifyRoutes from './routes/spotify.js';
+import playlistRoutes from './routes/playlists.js';
 
 const app = express();
 
@@ -20,19 +34,25 @@ app.use(cors({
 app.use(express.json());
 
 // Routes
-app.use('/api/auth', authRoutes);   // JWT register/login (no Spotify)
-app.use('/api', musicRoutes);        // /api/search, /api/stream/:id, /api/video/:id
+app.use('/api/auth', authRoutes);
+app.use('/api/spotify', spotifyRoutes);
+app.use('/api', musicRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api', playlistRoutes);
 
-import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Health check endpoint for Railway/Render
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', timestamp: new Date() });
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date(),
+    env: {
+      groq: !!process.env.GROQ_API_KEY,
+      youtube: !!process.env.YOUTUBE_API_KEY,
+      port: process.env.PORT
+    }
+  });
 });
 
 // Serve static frontend files in production

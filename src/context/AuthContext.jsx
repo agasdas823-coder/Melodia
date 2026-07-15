@@ -9,13 +9,20 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     // Check for stored token/user on initialization
     const storedUser = localStorage.getItem('melodia_user');
-    if (storedUser) {
+    const storedToken = localStorage.getItem('melodia_token');
+    
+    if (storedUser && storedToken) {
       try {
-        setUser(JSON.parse(storedUser));
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
       } catch (e) {
+        // Invalid stored data, clear it
         localStorage.removeItem('melodia_user');
+        localStorage.removeItem('melodia_token');
       }
     }
+    
+    // Finish loading after checking localStorage
     setLoading(false);
   }, []);
 

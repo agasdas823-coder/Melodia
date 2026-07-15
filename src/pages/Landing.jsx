@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import SongCard from '../components/song/SongCard';
+import { musicService } from '../services/apiService';
 
 export default function Landing() {
   const [trendingSongs, setTrendingSongs] = useState([]);
@@ -11,7 +11,7 @@ export default function Landing() {
   useEffect(() => {
     const fetchTrending = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5002"}/api/search?q=trending+popular+music&limit=4`);
+        const response = await musicService.search('trending popular music', { limit: 4 });
         setTrendingSongs(response.data.songs || []);
       } catch (err) {
         console.error('Failed to fetch trending songs from server, falling back to mock data:', err);

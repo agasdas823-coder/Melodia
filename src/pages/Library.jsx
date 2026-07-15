@@ -1,21 +1,38 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { usePlayer } from "../context/PlayerContext";
+import { aiService } from "../services/apiService";
 import { useAuth } from "../context/AuthContext";
-import { Plus, Heart, Music2, Sparkles, Play, Pause, ChevronRight } from "lucide-react";
+import { Plus, Heart, Sparkles, Play, Pause, X } from "lucide-react";
 import PlaylistCover from "../components/playlist/PlaylistCover";
+import CreatePlaylistModal from "../components/CreatePlaylistModal";
+import { playlistService } from "../services/apiService";
 
 export default function Library() {
   const navigate = useNavigate();
-  const { currentTrack, isPlaying, playTrack, togglePlay, likedSongs, playlists, createPlaylist, setNowPlayingOpen, setPreviewTrack } = usePlayer();
+  const { 
+    currentTrack, 
+    isPlaying, 
+    playTrack, 
+    togglePlay, 
+    likedSongs, 
+    playlists, 
+    createPlaylist, 
+    setNowPlayingOpen, 
+    setPreviewTrack 
+  } = usePlayer();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("liked");
   const [generating, setGenerating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
-
-
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdPlaylist, setCreatedPlaylist] = useState(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiCount, setAiCount] = useState(10);
 
   const handleManualCreate = () => {
     if (!newPlaylistName.trim()) return;
@@ -25,30 +42,142 @@ export default function Library() {
     setActiveTab("playlists");
   };
 
-  const handleGenerateSmartPlaylist = () => {
-    setGenerating(true);
-    setTimeout(() => {
-      const artistNames = likedSongs.map((s) => s.artist);
-      const uniqueArtist = artistNames.length > 0 ? artistNames[0] : "Acoustics";
-
-      createPlaylist(
-        `🔮 Your ${uniqueArtist} Mix`,
-        `Auto-generated smart mix optimized around your interest in ${uniqueArtist}.`,
-        likedSongs[0]?.thumbnail || likedSongs[0]?.thumbnail_medium || likedSongs[0]?.coverArtUrl || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=60",
-        likedSongs.slice(0, 8)
-      );
-      setActiveTab("playlists");
-      setGenerating(false);
-    }, 1800);
+  const openCreatePlaylistModal = () => {
+    setShowCreateModal(true);
+    setShowCreateForm(false);
   };
 
+  const handleCreatePlaylist = async (payload) => {
+    setCreatingPlaylist(true);
+    try {
+      const response = await playlistService.create(payload);
+      const created = response?.data?.playlist || response?.data;
+
+      if (created) {
+        createPlaylist(
+          created.name || payload.name,
+          created.description || payload.description,
+          created.coverImage || payload.coverImage || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+          [],
+          user?.username || user?.email || "You",
+          payload.isPrivate === false ? false : payload.isPrivate,
+          created.shareUrl || payload.shareUrl
+        );
+      } else {
+        createPlaylist(
+          payload.name,
+          payload.description || "Custom playlist created in library.",
+          payload.coverImage || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+          [],
+          user?.username || user?.email || "You",
+          payload.isPrivate === false ? false : payload.isPrivate,
+          undefined
+        );
+      }
+
+      setActiveTab("playlists");
+      setShowCreateModal(false);
+    } catch (error) {
+      console.error("Failed to create playlist", error);
+      createPlaylist(
+        payload.name,
+        payload.description || "Custom playlist created in library.",
+        payload.coverImage || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+        [],
+        user?.username || user?.email || "You",
+        payload.isPrivate === false ? false : payload.isPrivate,
+        undefined
+      );
+      setActiveTab("playlists");
+      setShowCreateModal(false);
+    } finally {
+      setCreatingPlaylist(false);
+    }
+  };
+
+  // ── AI Playlist Generation ──
+  const handleAIGenerate = async (prompt, count) => {
+    setGenerating(true);
+    
+    try {
+      const response = await aiService.generate({
+        prompt: prompt,
+        count: count || 10,
+      });
+
+      const data = response.data;
+
+      if (data.success) {
+        const aiSongs = data.playlist.songs.map(song => ({
+          id: song.videoId || song.id,
+          _id: song.videoId || song.id,
+          videoId: song.videoId || song.id,
+          title: song.title,
+          artist: song.artist || song.channelTitle,
+          thumbnail: song.thumbnail || '',
+          thumbnail_medium: song.thumbnail || '',
+          coverArtUrl: song.thumbnail || '',
+          duration: song.duration || 0,
+          duration_string: song.duration_string || '0:00',
+          url: song.url || `https://www.youtube.com/watch?v=${song.videoId || song.id}`,
+          audioUrl: null,
+          type: 'song',
+          source: 'ai-generated'
+        }));
+
+        const playlistName = data.playlist.title || `🎵 AI Playlist: ${prompt.slice(0, 20)}`;
+        const playlistDescription = data.playlist.description || `Generated by Melodia AI. Prompt: "${prompt}"`;
+        const coverImage = data.playlist.coverImage || 
+                          aiSongs[0]?.thumbnail || 
+                          "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=60";
+
+        // Create the playlist
+        const newPlaylist = createPlaylist(
+          playlistName,
+          playlistDescription,
+          coverImage,
+          aiSongs,
+          true
+        );
+
+        // Store and show success modal
+        setCreatedPlaylist(newPlaylist);
+        setShowSuccessModal(true);
+      } else {
+        alert('Failed to generate playlist: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('AI Playlist generation error:', error);
+      if (error.response) {
+        alert(`Server error: ${error.response.data.error || error.response.status}`);
+      } else {
+        alert('Error generating playlist. Please make sure the server is running.');
+      }
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // ── Handle row click ──
   const handleRowClick = (song) => {
-    const isCurrent = currentTrack && (currentTrack.id === song.id || currentTrack._id === song._id);
+    const songId = song.id || song._id || song.videoId;
+    const currentId = currentTrack ? (currentTrack.id || currentTrack._id || currentTrack.videoId) : null;
+    const isCurrent = currentTrack && songId === currentId;
+    
     if (isCurrent) {
       if (!isPlaying) togglePlay();
     } else {
-      playTrack(song, likedSongs);
+      if (songId) {
+        playTrack(song, likedSongs);
+      }
     }
+  };
+
+  const isSongCurrent = (song) => {
+    if (!currentTrack) return false;
+    const songId = song.id || song._id || song.videoId;
+    const currentId = currentTrack.id || currentTrack._id || currentTrack.videoId;
+    return songId === currentId;
   };
 
   const formatDuration = (secs) => {
@@ -60,7 +189,7 @@ export default function Library() {
 
   return (
     <div className="p-6 md:p-8 space-y-8 text-left animate-in fade-in duration-200" style={{ fontFamily: "Urbanist, sans-serif" }}>
-      {/* Header */}
+      {/* Header - same as before */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-white mb-2">My Library</h1>
@@ -94,9 +223,9 @@ export default function Library() {
               </button>
             </div>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <button
-                onClick={() => setShowCreateForm(true)}
+                onClick={openCreatePlaylistModal}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-bold transition-all cursor-pointer w-fit"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -104,12 +233,12 @@ export default function Library() {
               </button>
               
               <button
-                onClick={handleGenerateSmartPlaylist}
+                onClick={() => setShowAIModal(true)}
                 disabled={generating}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary/20 border border-primary/40 hover:bg-primary/30 text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer w-fit"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                {generating ? "Generating Smart Mix..." : "Generate Smart Playlist"}
+                {generating ? "Generating..." : "Generate Smart Playlist"}
               </button>
             </div>
           )}
@@ -131,7 +260,7 @@ export default function Library() {
         ))}
       </div>
 
-      {/* Content */}
+      {/* Content - Liked Songs */}
       {activeTab === "liked" && (
         <section className="space-y-3">
           {likedSongs.length === 0 ? (
@@ -151,11 +280,11 @@ export default function Library() {
               </div>
 
               {likedSongs.map((song, i) => {
-                const isCurrent = currentTrack && (currentTrack.id === song.id || currentTrack._id === song._id);
+                const isCurrent = isSongCurrent(song);
                 const showPlaying = isCurrent && isPlaying;
                 return (
                   <div
-                    key={song.id || song._id}
+                    key={song.id || song._id || song.videoId || i}
                     onClick={() => handleRowClick(song)}
                     className={`group flex items-center gap-4 px-4 py-3 rounded-xl cursor-pointer transition-all duration-150 ${
                       isCurrent ? "bg-primary/10 border border-primary/25" : "hover:bg-card/60 border border-transparent"
@@ -182,9 +311,8 @@ export default function Library() {
                       )}
                     </div>
                     <img
-                    onClick={(e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        const isCurrent = currentTrack && (currentTrack.id === song.id || currentTrack._id === song._id);
                         if (!isCurrent) setPreviewTrack(song);
                         setNowPlayingOpen(true);
                       }}
@@ -208,9 +336,21 @@ export default function Library() {
         </section>
       )}
 
+      {/* Content - Playlists */}
       {activeTab === "playlists" && (
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Liked songs helper card */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">Your saved collections</div>
+            <button
+              onClick={openCreatePlaylistModal}
+              className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-white/10"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Playlist
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div
             onClick={() => setActiveTab("liked")}
             className="flex items-center gap-4 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/15 border border-primary/20 p-4 cursor-pointer hover:border-primary/40 transition-all group text-left"
@@ -253,7 +393,147 @@ export default function Library() {
               </div>
             </div>
           ))}
+          </div>
         </section>
+      )}
+
+      <CreatePlaylistModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreate={handleCreatePlaylist}
+        submitting={creatingPlaylist}
+      />
+
+      {/* ── AI Playlist Generator Modal ── */}
+      {showAIModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-[#1a1a2e] rounded-2xl p-6 max-w-md w-full mx-4 border border-white/10 shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">🤖 Generate AI Playlist</h2>
+              <button
+                onClick={() => {
+                  setShowAIModal(false);
+                  setAiPrompt('');
+                }}
+                className="text-muted-foreground hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-sm text-muted-foreground mb-4">
+              Describe the vibe, mood, or theme for your perfect playlist.
+            </p>
+            
+            <label className="block mb-4">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Your Prompt</span>
+              <input
+                type="text"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="e.g., sad bollywood songs for a rainy day"
+                className="w-full bg-[#111120] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50 transition-colors mt-1"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && aiPrompt.trim()) {
+                    handleAIGenerate(aiPrompt, aiCount);
+                    setShowAIModal(false);
+                    setAiPrompt('');
+                  }
+                }}
+              />
+            </label>
+            
+            <label className="block mb-6">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Number of Songs: {aiCount}</span>
+              <input
+                type="range"
+                min="5"
+                max="20"
+                value={aiCount}
+                onChange={(e) => setAiCount(Number(e.target.value))}
+                className="w-full mt-1 accent-primary"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>5</span>
+                <span>20</span>
+              </div>
+            </label>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowAIModal(false);
+                  setAiPrompt('');
+                }}
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl py-2.5 text-white text-sm font-bold hover:bg-white/10 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (aiPrompt.trim()) {
+                    handleAIGenerate(aiPrompt, aiCount);
+                    setShowAIModal(false);
+                    setAiPrompt('');
+                  } else {
+                    alert('Please describe what kind of playlist you want!');
+                  }
+                }}
+                disabled={generating}
+                className="flex-1 bg-gradient-to-r from-primary to-accent rounded-xl py-2.5 text-white text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {generating ? 'Generating...' : '✨ Generate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Success Modal ── */}
+      {showSuccessModal && createdPlaylist && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-[#1a1a2e] rounded-2xl p-6 max-w-md w-full mx-4 border border-white/10 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
+                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              <h2 className="text-xl font-bold text-white mb-2">✅ Playlist Created!</h2>
+              <p className="text-sm text-muted-foreground mb-1">
+                <span className="text-white font-semibold">{createdPlaylist.name}</span>
+              </p>
+              <p className="text-xs text-muted-foreground mb-6">
+                {createdPlaylist.songs?.length || 0} songs added
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setCreatedPlaylist(null);
+                    setActiveTab("playlists");
+                  }}
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl py-2.5 text-white text-sm font-bold hover:bg-white/10 transition-colors"
+                >
+                  Stay Here
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setCreatedPlaylist(null);
+                    navigate(`/playlist/${createdPlaylist.id}`);
+                  }}
+                  className="flex-1 bg-gradient-to-r from-primary to-accent rounded-xl py-2.5 text-white text-sm font-bold hover:opacity-90 transition-opacity"
+                >
+                  View Playlist 🎵
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

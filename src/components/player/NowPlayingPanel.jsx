@@ -28,6 +28,7 @@ export default function NowPlayingPanel({ isOpen, onClose }) {
     previewTrack,
     setPreviewTrack,
     activeSource,
+    usingFallback,
   } = usePlayer();
 
   const panelRef = useRef(null);
@@ -146,7 +147,7 @@ export default function NowPlayingPanel({ isOpen, onClose }) {
                     <div className="inline-block text-xs font-semibold tracking-widest text-violet-400 uppercase bg-violet-900/30 px-3 py-1 rounded-full">
                       {displayTrack.genre || "Music"}
                     </div>
-                    <SourceBadge source={activeSource} />
+                    <SourceBadge source={activeSource} usingFallback={usingFallback} />
                   </div>
                   <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight mb-2 truncate">
                     {displayTrack.title}

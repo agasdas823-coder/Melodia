@@ -1,18 +1,12 @@
+// server/spotify.js
 import axios from 'axios';
 
 /**
  * iTunes Search API helper — completely free, no auth required.
  * Provides track metadata + 30-second M4A preview URLs.
- * Works globally without geo-restrictions.
  */
 
-/**
- * Searches iTunes for tracks.
- * @param {string} query - Search query
- * @param {number} limit - Max results (default 20, max 200)
- * @returns {Array} Formatted track objects
- */
-export async function searchTracks(query, limit = 20) {
+export async function searchTracks(query, limit = 50) {
   try {
     const response = await axios.get('https://itunes.apple.com/search', {
       params: {
@@ -32,11 +26,11 @@ export async function searchTracks(query, limit = 20) {
   }
 }
 
-/**
- * Gets a single track from iTunes by ID.
- * @param {string|number} id - iTunes track ID
- * @returns {object|null} Formatted track object
- */
+// ✅ ADD THIS MISSING FUNCTION
+export async function searchTracksITunes(query, limit = 50) {
+  return searchTracks(query, limit);
+}
+
 export async function getTrack(id) {
   try {
     const response = await axios.get('https://itunes.apple.com/lookup', {
@@ -54,11 +48,12 @@ export async function getTrack(id) {
   }
 }
 
-/**
- * Formats an iTunes track object to match Melodia's expected schema.
- */
+// ✅ ADD THIS MISSING FUNCTION
+export async function getITunesTrack(id) {
+  return getTrack(id);
+}
+
 function formatITunesTrack(track) {
-  // Upgrade artwork to 600x600 for higher quality
   const artwork = (track.artworkUrl100 || '').replace('100x100bb', '600x600bb');
 
   return {
@@ -82,6 +77,9 @@ function formatITunesTrack(track) {
     audioUrl: track.previewUrl || null,
     audio_url: track.previewUrl || null,
     type: 'song',
+    source: 'itunes',
+    hasFullAudio: false,
+    hasPreview: !!track.previewUrl,
   };
 }
 

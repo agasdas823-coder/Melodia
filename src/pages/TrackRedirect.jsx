@@ -1,9 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
-import { API_URL } from '../utils/config';
+import { musicService } from '../services/apiService';
 
 export default function TrackRedirect() {
   const { id } = useParams();
@@ -19,7 +18,7 @@ export default function TrackRedirect() {
 
     const fetchAndPlay = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/track/${id}`);
+        const res = await musicService.getTrack(id);
         if (res.data.success && res.data.song) {
           const song = res.data.song;
 
@@ -27,7 +26,7 @@ export default function TrackRedirect() {
           if (!song.previewUrl && !song.preview_url) {
             try {
               const q = `${song.title} ${song.artist || ''}`;
-              const searchRes = await axios.get(`${API_URL}/api/search?q=${encodeURIComponent(q)}&limit=1`);
+              const searchRes = await musicService.search(q, { limit: 1 });
               if (searchRes.data.songs?.length > 0) {
                 const found = searchRes.data.songs[0];
                 song.previewUrl = found.previewUrl;

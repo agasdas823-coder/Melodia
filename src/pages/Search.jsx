@@ -4,6 +4,7 @@ import { usePlayer } from "../context/PlayerContext";
 import { Search as SearchIcon, X, Play, Pause, Music, Heart, Plus } from "lucide-react";
 import AddToPlaylistDropdown from "../components/playlist/AddToPlaylistDropdown";
 import { API_URL } from "../utils/config";
+import { getPlaylist } from "../services/playlistService";
 
 
 const POPULAR_SEARCHES = [
@@ -47,16 +48,48 @@ export default function Search() {
     setResults([]);
 
     try {
-      const response = await fetch(
-        `${API_URL}/api/search?q=${encodeURIComponent(trimmed)}&limit=20&type=${typeToUse}`
-      );
-      if (!response.ok) throw new Error(`Server error: ${response.status}`);
-      const data = await response.json();
-      setResults(data.songs || []);
+      const isSpotifySearch = ['all', 'song', 'artist'].includes(typeToUse);
+      const endpoint = isSpotifySearch ? '/api/spotify/search' : '/api/search';
+
+      const fetchResults = async (url, sourceHint) => {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Server error: ${response.status}`);
+        const data = await response.json();
+        if (data.success === false) {
+          throw new Error(data.error?.message || 'Search endpoint returned failure');
+        }
+        return (data.songs || []).map((item) => ({
+          ...item,
+          source: item.source || sourceHint,
+          type: item.type || 'song',
+          title: item.title || item.name || 'Untitled',
+          name: item.name || item.title || 'Untitled',
+          artist: item.artist || item.channel || 'Unknown Artist',
+          thumbnail: item.thumbnail || item.coverArtUrl || item.thumbnail_medium || '',
+          coverArtUrl: item.coverArtUrl || item.thumbnail || item.thumbnail_medium || '',
+        }));
+      };
+
+      const spotifyUrl = `${API_URL}/api/spotify/search?q=${encodeURIComponent(trimmed)}&limit=20&type=${typeToUse}`;
+      const youtubeUrl = `${API_URL}/api/search?q=${encodeURIComponent(trimmed)}&limit=20&type=${typeToUse}`;
+
+      let normalizedSongs;
+      if (isSpotifySearch) {
+        try {
+          normalizedSongs = await fetchResults(spotifyUrl, 'spotify');
+        } catch (spotifyError) {
+          console.warn('[Search] Spotify search failed, falling back to YouTube:', spotifyError);
+          normalizedSongs = await fetchResults(youtubeUrl, 'youtube');
+        }
+      } else {
+        normalizedSongs = await fetchResults(youtubeUrl, 'youtube');
+      }
+
+      setResults(normalizedSongs);
       
       // Pre-cache first 10 results in the background (non-blocking)
-      if (data.songs && data.songs.length > 0) {
-        const tracksToCache = data.songs.filter(s => s.type !== 'playlist').slice(0, 10);
+      if (normalizedSongs.length > 0) {
+        const tracksToCache = normalizedSongs.filter(s => s.type !== 'playlist').slice(0, 10);
         tracksToCache.forEach(track => {
           try { prefetchTrack(track); } catch (e) {}
         });
@@ -143,12 +176,70 @@ export default function Search() {
   const handleAddPlaylist = async (item, e) => {
     e.stopPropagation();
     try {
-      const response = await fetch(`${API_URL}/api/youtube-playlist/${item.id}`);
-      if (!response.ok) throw new Error("Failed to fetch playlist");
-      const data = await response.json();
-      createPlaylist(item.title, "Imported from YouTube", item.thumbnail || item.thumbnail_medium, data.playlist?.songs || [], "YouTube");
+      console.log('📝 Adding playlist to library:', item.title, item.id);
+
+      let songsToImport = [];
+      const playlistId = typeof item.id === 'string'
+        ? item.id
+        : item.id?.playlistId || item._id;
+
+      if (playlistId) {
+        try {
+          const result = await getPlaylist(playlistId);
+          const fetchedPlaylist = result.playlist;
+          console.log('🔍 Playlist fetch result for import:', playlistId, result);
+          if (result.success && fetchedPlaylist?.songs?.length > 0) {
+            songsToImport = (fetchedPlaylist.songs || []).map((song) => ({
+              id: song.id || song.videoId || song._id,
+              _id: song.id || song.videoId || song._id,
+              videoId: song.videoId || song.id || song._id,
+              title: song.title || song.name || 'Untitled',
+              name: song.title || song.name || 'Untitled',
+              artist: song.artist || song.channelTitle || 'Unknown',
+              thumbnail: song.thumbnail || song.thumbnail_medium || song.coverArtUrl || '',
+              duration: song.duration || 0,
+              duration_string: song.duration_string || '0:00',
+              url: song.url || `https://www.youtube.com/watch?v=${song.videoId || song.id || song._id}`,
+              type: 'song',
+              source: song.source || 'youtube',
+            }));
+          } else {
+            console.warn('⚠️ Playlist import fetched no tracks:', playlistId, fetchedPlaylist);
+          }
+        } catch (playlistError) {
+          console.warn('⚠️ Could not load full playlist details, falling back to search payload:', playlistError);
+        }
+      }
+
+      if (songsToImport.length === 0) {
+        songsToImport = (item.songs || []).map((song) => ({
+          id: song.id || song.videoId || song._id,
+          _id: song.id || song.videoId || song._id,
+          videoId: song.videoId || song.id || song._id,
+          title: song.title || song.name || 'Untitled',
+          name: song.title || song.name || 'Untitled',
+          artist: song.artist || song.channelTitle || 'Unknown',
+          thumbnail: song.thumbnail || song.thumbnail_medium || song.coverArtUrl || '',
+          duration: song.duration || 0,
+          duration_string: song.duration_string || '0:00',
+          url: song.url || `https://www.youtube.com/watch?v=${song.videoId || song.id || song._id}`,
+          type: 'song',
+          source: song.source || 'youtube',
+        }));
+      }
+
+      const importedPlaylist = await createPlaylist(
+        item.title || item.name || 'Untitled Playlist',
+        item.description || 'Imported from search results',
+        item.thumbnail || item.thumbnail_medium || item.coverImageUrl || item.coverArtUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60',
+        songsToImport,
+        'YouTube',
+        false
+      );
+
+      console.log('✅ Playlist added to library:', importedPlaylist);
     } catch (err) {
-      console.error("Failed to add playlist:", err);
+      console.error('❌ Failed to add playlist:', err);
     }
   };
 
@@ -333,7 +424,9 @@ export default function Search() {
                       {item.title}
                     </p>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {isPlaylist ? `${item.videoCount || 0} tracks${item.artist && item.artist.toLowerCase() !== "youtube playlist" ? ` • ${item.artist}` : ""}` : item.artist}
+                      {isPlaylist
+                        ? `${item.videoCount || item.songs?.length || 'Playlist'} tracks${item.artist && item.artist.toLowerCase() !== "youtube playlist" ? ` • ${item.artist}` : ""}`
+                        : item.artist}
                     </p>
                   </div>
                 </div>

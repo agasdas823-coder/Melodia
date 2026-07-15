@@ -8,6 +8,8 @@ import NowPlayingPanel from "../player/NowPlayingPanel";
 import AddToPlaylistDropdown from "../playlist/AddToPlaylistDropdown";
 import PlaylistCover from "../playlist/PlaylistCover";
 import SourceBadge from "../player/SourceBadge";
+import CreatePlaylistModal from "../CreatePlaylistModal";
+import { playlistService } from "../../services/apiService";
 import {
   Home,
   Search as SearchIcon,
@@ -64,6 +66,8 @@ export default function AppLayout() {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [shuffled, setShuffled] = useState(false);
   const [repeated, setRepeated] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
 
   // Avatar from user context
   const userAvatar = user?.avatar || null;
@@ -71,6 +75,50 @@ export default function AppLayout() {
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleCreatePlaylist = async (payload) => {
+    setCreatingPlaylist(true);
+    try {
+      const response = await playlistService.create(payload);
+      const created = response?.data?.playlist || response?.data;
+
+      if (created) {
+        createPlaylist(
+          created.name || payload.name,
+          created.description || payload.description,
+          created.coverImage || payload.coverImage || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+          [],
+          user?.username || user?.email || "You",
+          payload.isPrivate === false ? false : payload.isPrivate,
+          created.shareUrl || payload.shareUrl
+        );
+      } else {
+        createPlaylist(
+          payload.name,
+          payload.description || "Custom playlist created from the sidebar.",
+          payload.coverImage || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+          [],
+          user?.username || user?.email || "You",
+          payload.isPrivate === false ? false : payload.isPrivate,
+          undefined
+        );
+      }
+    } catch (error) {
+      console.error("Failed to create playlist", error);
+      createPlaylist(
+        payload.name,
+        payload.description || "Custom playlist created from the sidebar.",
+        payload.coverImage || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+        [],
+        user?.username || user?.email || "You",
+        payload.isPrivate === false ? false : payload.isPrivate,
+        undefined
+      );
+    } finally {
+      setCreatingPlaylist(false);
+      setShowCreateModal(false);
+    }
   };
 
   // Source-status toasts removed as per instruction
@@ -186,12 +234,7 @@ export default function AppLayout() {
             <div className="flex items-center justify-between px-3 mb-3">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest select-none">Playlists</span>
               <button
-                onClick={() => {
-                  const name = prompt("Enter new playlist name:");
-                  if (name && name.trim()) {
-                    createPlaylist(name.trim());
-                  }
-                }}
+                onClick={() => setShowCreateModal(true)}
                 className="w-6 h-6 rounded-md bg-muted/60 flex items-center justify-center hover:bg-primary/20 hover:text-primary text-muted-foreground transition-colors cursor-pointer"
                 title="Create Playlist"
               >
@@ -482,6 +525,11 @@ export default function AppLayout() {
           <span className="text-[10px] font-bold uppercase tracking-wider">Library</span>
         </Link>
       </nav>
-    </div>
+      <CreatePlaylistModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreate={handleCreatePlaylist}
+        submitting={creatingPlaylist}
+      />    </div>
   );
 }
