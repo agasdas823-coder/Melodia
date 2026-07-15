@@ -19,19 +19,36 @@ import playlistRoutes from './routes/playlists.js';
 
 const app = express();
 
-app.use(cors({
-  origin: [
-    'https://melody-production-e1a0.up.railway.app',
-    'https://melodia-wheat.vercel.app',
-    'http://localhost:5174',
-    'http://127.0.0.1:5174',
-    'http://localhost:5173',
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      'https://melody-production-e1a0.up.railway.app',
+      'https://melody-production-0d59.up.railway.app',
+      'https://melodia-wheat.vercel.app',
+      'http://localhost:5174',
+      'http://127.0.0.1:5174',
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+    ];
+
+    // Allow any Vercel preview deployment
+    if (allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-}));
-app.options('*', cors());
+};
+
+// Handle preflight OPTIONS requests FIRST, with the SAME config
+app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
