@@ -2,7 +2,8 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import fs from 'fs'; // ✅ ADD THIS
+import fs from 'fs';
+import mongoose from 'mongoose';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,19 +25,20 @@ if (fs.existsSync(envPath)) {
 }
 
 // ── Load .env from the server directory ──
-dotenv.config({ 
-  path: path.resolve(__dirname, '.env') 
+dotenv.config({
+  path: path.resolve(__dirname, '.env'),
 });
 
 // ── Also try loading from parent directory (fallback) ──
-dotenv.config({ 
-  path: path.resolve(__dirname, '..', '.env') 
+dotenv.config({
+  path: path.resolve(__dirname, '..', '.env'),
 });
 
 // ── Verify environment variables are loaded ──
 console.log('\n✅ Environment variables loaded:');
 console.log('  GROQ_API_KEY:', process.env.GROQ_API_KEY ? '✅ Set' : '❌ Missing');
 console.log('  YOUTUBE_API_KEY:', process.env.YOUTUBE_API_KEY ? '✅ Set' : '❌ Missing');
+console.log('  MONGODB_URI:', process.env.MONGODB_URI ? '✅ Set' : '❌ Missing');
 console.log('  PORT:', process.env.PORT || 5002);
 
 // ── Debug: Show first few characters of keys (for verification) ──
@@ -46,10 +48,33 @@ if (process.env.YOUTUBE_API_KEY) {
 if (process.env.GROQ_API_KEY) {
   console.log('  GROQ_API_KEY starts with:', process.env.GROQ_API_KEY.substring(0, 10) + '...');
 }
+if (process.env.MONGODB_URI) {
+  console.log('  MONGODB_URI starts with:', process.env.MONGODB_URI.substring(0, 10) + '...');
+}
 
 import app from './app.js';
 
 const PORT = process.env.PORT || 5002;
+
+async function connectDatabase() {
+  if (!process.env.MONGODB_URI) {
+    console.warn('⚠️ No MONGODB_URI configured. Skipping MongoDB connection.');
+    return;
+  }
+
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log('✅ MongoDB connected');
+  } catch (err) {
+    console.error('❌ MongoDB connection error:', err);
+    process.exit(1);
+  }
+}
+
+await connectDatabase();
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Server running on port ${PORT}`);

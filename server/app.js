@@ -18,17 +18,6 @@ import spotifyRoutes from './routes/spotify.js';
 import playlistRoutes from './routes/playlists.js';
 
 const app = express();
-// Add this BEFORE any static file serving
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    env: {
-      node: process.env.NODE_ENV,
-      port: process.env.PORT
-    }
-  });
-});
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -36,33 +25,51 @@ const corsOptions = {
     if (!origin) return callback(null, true);
 
     const allowedOrigins = [
-      'https://melody-production-0d59.up.railway.app',
-      'https://melody-production-e1a0.up.railway.app/',
       'https://melodia-wheat.vercel.app',
-      'https://melodia-wheat.vercel.app/login'
+      'https://melodia-wheat.vercel.app/',
+      'https://melody-production-0d59.up.railway.app',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:5174',
     ];
 
-    // Allow any Vercel preview deployment or localhost port
-    if (
-      allowedOrigins.includes(origin) ||
-      /\.vercel\.app$/.test(origin) ||
-      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
-    ) {
+    if (allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
     }
 
-    callback(null, false);
+    console.log('❌ CORS blocked origin:', origin);
+    callback(new Error('Not allowed by CORS'));
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 };
 
-// Handle preflight OPTIONS requests FIRST, with the SAME config
 app.options('*', cors(corsOptions));
 app.use(cors(corsOptions));
 
+// Log all requests for debugging
+app.use((req, res, next) => {
+  console.log(`📡 ${req.method} ${req.path} from ${req.headers.origin || 'no origin'}`);
+  next();
+});
+
 app.use(express.json());
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    cors: 'enabled',
+    env: {
+      node: process.env.NODE_ENV || 'development',
+      port: process.env.PORT || 5002,
+    },
+  });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
