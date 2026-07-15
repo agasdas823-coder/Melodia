@@ -18,6 +18,17 @@ import spotifyRoutes from './routes/spotify.js';
 import playlistRoutes from './routes/playlists.js';
 
 const app = express();
+// Add this BEFORE any static file serving
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    env: {
+      node: process.env.NODE_ENV,
+      port: process.env.PORT
+    }
+  });
+});
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -25,14 +36,15 @@ const corsOptions = {
     if (!origin) return callback(null, true);
 
     const allowedOrigins = [
-      'https://melody-production-e1a0.up.railway.app',
       'https://melody-production-0d59.up.railway.app',
+      'https://melody-production-e1a0.up.railway.app/',
       'https://melodia-wheat.vercel.app',
+      'https://melodia-wheat.vercel.app/login'
     ];
 
     // Allow any Vercel preview deployment or localhost port
     if (
-      allowedOrigins.includes(origin) || 
+      allowedOrigins.includes(origin) ||
       /\.vercel\.app$/.test(origin) ||
       /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
     ) {
@@ -63,8 +75,8 @@ import fs from 'fs';
 
 // Health check endpoint for Railway/Render
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy', 
+  res.status(200).json({
+    status: 'healthy',
     timestamp: new Date(),
     env: {
       groq: !!process.env.GROQ_API_KEY,
