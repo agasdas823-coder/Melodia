@@ -130,17 +130,28 @@ export default function PlaylistDetail() {
 
   const handlePlayPlaylist = () => {
     if (playlistSongs.length > 0) {
-      if (isShuffled) toggleShuffle();
-      playTrack(playlistSongs[0], playlistSongs);
+      if (isShuffled) {
+        const randomIndex = Math.floor(Math.random() * playlistSongs.length);
+        playTrack(playlistSongs[randomIndex], playlistSongs);
+      } else {
+        playTrack(playlistSongs[0], playlistSongs);
+      }
     }
   };
 
-  const handleShufflePlay = () => {
-    if (playlistSongs.length > 0) {
-      if (!isShuffled) toggleShuffle();
-      const randomIndex = Math.floor(Math.random() * playlistSongs.length);
-      playTrack(playlistSongs[randomIndex], playlistSongs);
-    }
+  const handleSaveToMyPlaylists = () => {
+    createPlaylist(
+      playlist.name,
+      playlist.description,
+      playlist.coverImageUrl,
+      playlistSongs,
+      user?.username || user?.email || 'You',
+      false,
+      playlist.shareUrl
+    );
+    setIsMenuOpen(false);
+    alert('Playlist saved to your library!');
+    // Redirect to library so they see it? Or just let them stay.
   };
 
   const handleRename = () => {
@@ -361,9 +372,9 @@ export default function PlaylistDetail() {
           {playlistSongs.length > 0 && (
             <>
               <button
-                onClick={handleShufflePlay}
-                className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-surface-container hover:bg-surface-container-highest flex items-center justify-center text-primary transition-all duration-300 hover:scale-105 active:scale-95 flex-shrink-0 cursor-pointer border border-primary/20"
-                title="Shuffle Play"
+                onClick={toggleShuffle}
+                className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 flex-shrink-0 cursor-pointer border ${isShuffled ? 'bg-primary/20 border-primary text-primary' : 'bg-surface-container hover:bg-surface-container-highest border-primary/20 text-on-surface-variant'}`}
+                title={isShuffled ? "Shuffle On" : "Shuffle Off"}
               >
                 <span className="material-symbols-outlined text-2xl md:text-3xl">shuffle</span>
               </button>
@@ -387,7 +398,24 @@ export default function PlaylistDetail() {
           
           {isMenuOpen && (
             <div className="absolute top-14 right-0 w-48 bg-surface-container-high border border-outline-variant/20 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
-              {!playlist.isYouTube && (
+              {playlist.source === 'public' && !playlist.isYouTube ? (
+                <>
+                  <button
+                    onClick={handleSaveToMyPlaylists}
+                    className="w-full text-left px-4 py-3 text-sm font-medium text-on-surface hover:bg-white/5 transition-colors flex items-center gap-2 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">playlist_add</span>
+                    Save to My Playlists
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="w-full text-left px-4 py-3 text-sm font-medium text-on-surface hover:bg-white/5 transition-colors flex items-center gap-2 cursor-pointer border-t border-outline-variant/10"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Share Playlist
+                  </button>
+                </>
+              ) : !playlist.isYouTube ? (
                 <>
                   <button
                     onClick={() => {
@@ -416,8 +444,7 @@ export default function PlaylistDetail() {
                     Delete Playlist
                   </button>
                 </>
-              )}
-              {playlist.isYouTube && (
+              ) : (
                 <button
                   className="w-full text-left px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-white/5 transition-colors flex items-center gap-2 cursor-not-allowed"
                   disabled
