@@ -125,7 +125,8 @@ export default function Login({ initialTab = "login" }) {
       login(data.user, data.token);
       navigate(from);
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
+      const serverMessage = err?.response?.data?.error?.message || err?.response?.data?.message;
+      setError(serverMessage || err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
