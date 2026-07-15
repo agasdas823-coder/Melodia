@@ -2,6 +2,7 @@
 import express from 'express';
 import axios from 'axios';
 import { callGroqAPI } from '../controllers/aiController.js';
+import { getLyrics as getLrclibLyrics } from '../controllers/lyricsController.js';
 import {
   searchMusic,
   getTrackById,
@@ -232,100 +233,14 @@ router.get('/songs/:id', async (req, res) => {
 // ── GET /api/lyrics - Get lyrics by title and artist ──
 router.get('/lyrics', async (req, res) => {
   try {
-    const { title, artist } = req.query;
-    
-    if (!title) {
-      return res.status(400).json({
-        success: false,
-        error: 'Title parameter is required'
-      });
-    }
-
-    console.log('🎵 [Lyrics] Fetching lyrics for:', title, 'by', artist || 'Unknown');
-    
-    // Primary source: LRCLIB search (fuzzy matching, free, no API key required)
-    try {
-      console.log('[Lyrics] Attempting LRCLIB search...');
-      const lrclibResponse = await axios.get('https://lrclib.net/api/search', {
-        params: {
-          track_name: title,
-          artist_name: artist || ''
-        },
-        timeout: 5000
-      });
-
-      const results = Array.isArray(lrclibResponse.data) ? lrclibResponse.data : [];
-      const bestMatch = results.find((entry) => entry?.syncedLyrics || entry?.plainLyrics) || results[0] || null;
-
-      if (bestMatch) {
-        const lyricsText = bestMatch.syncedLyrics || bestMatch.plainLyrics || '';
-        if (lyricsText) {
-          console.log('✅ [Lyrics] Found lyrics on LRCLIB');
-          return res.json({
-            success: true,
-            lyrics: lyricsText,
-            source: 'lrclib',
-            title: title,
-            artist: artist,
-            syncedLyrics: bestMatch.syncedLyrics || null,
-            plainLyrics: bestMatch.plainLyrics || null
-          });
-        }
-      }
-
-      console.log('[Lyrics] LRCLIB returned no usable lyrics, trying Groq...');
-    } catch (lrclibErr) {
-      console.log('[Lyrics] LRCLIB failed:', lrclibErr.message, '- trying Groq...');
-    }
-    
-    // Fallback to Groq AI for lyrics generation
-    try {
-      console.log('[Lyrics] Attempting Groq AI...');
-      const completion = await callGroqAPI([
-        {
-          role: 'system',
-          content: `You are a lyrics database. Return ONLY the clean text lyrics of the song requested.
-Do not add introductions, explanations, headings, metadata, credits, or markdown. Just the raw lyrics text with line breaks.`
-        },
-        {
-          role: 'user',
-          content: `Provide the full lyrics for "${title}" by "${artist || 'Unknown Artist'}".`
-        }
-      ]);
-
-      const lyrics = completion.choices?.[0]?.message?.content || 'Lyrics not found.';
-      
-      console.log('✅ [Lyrics] Generated lyrics via Groq');
-      return res.json({
-        success: true,
-        lyrics: lyrics,
-        source: 'groq',
-        title: title,
-        artist: artist
-      });
-    } catch (groqErr) {
-      console.warn('⚠️ [Lyrics] Groq API failed:', groqErr.message);
-      // Fallback: Return "Lyrics not available" instead of 500 error
-      console.log('[Lyrics] Returning graceful fallback response');
-      return res.json({
-        success: true,
-        lyrics: `Lyrics for "${title}" by "${artist || 'Unknown Artist'}" are not currently available.\n\nTry searching on:`,
-        source: 'fallback',
-        title: title,
-        artist: artist,
-        message: 'Lyrics database temporarily unavailable. Please try again later.'
-      });
-    }
+    await getLrclibLyrics(req, res);
   } catch (error) {
-    console.error('❌ Lyrics error:', error);
-    // Always return a response, never crash
-    res.json({
-      success: true,
-      lyrics: `Lyrics not available for this track.`,
-      source: 'fallback',
-      message: 'An error occurred while fetching lyrics. Please try again later.',
-      title: req.query.title || 'Unknown',
-      artist: req.query.artist || 'Unknown'
+    console.error('❌ Lyrics route error:', error);
+    return res.status(404).json({
+      found: false,
+      success: false,
+      title: req.query?.title ?? null,
+      artist: req.query?.artist ?? null,
     });
   }
 });

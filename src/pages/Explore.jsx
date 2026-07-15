@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePlayer } from "../context/PlayerContext";
 import { musicService } from "../services/apiService";
 import { Sparkles, Heart, Play, Pause, ChevronRight, TrendingUp, Mic, Award, Plus, Music } from "lucide-react";
@@ -33,7 +33,7 @@ const MOOD_QUERIES = {
 };
 
 export default function Explore() {
-  const { currentTrack, isPlaying, playTrack, togglePlay, toggleLike, isLiked, recentTracks, createPlaylist, prefetchTrack, setNowPlayingOpen, setPreviewTrack } = usePlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlay, toggleLike, isLiked, recentTracks, createPlaylist, setNowPlayingOpen, setPreviewTrack } = usePlayer();
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilterTab, setActiveFilterTab] = useState("all");
@@ -143,21 +143,6 @@ export default function Explore() {
     fetchSongs();
   }, [fetchSongs]);
 
-  const hoverTimeoutRef = useRef(null);
-
-  const handleMouseEnter = (song) => {
-    if (song.type === 'playlist') return; // Only prefetch songs
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => {
-      prefetchTrack(song);
-    }, 300);
-  };
-
-  const handleMouseLeave = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-  };
 
   const handleItemClick = (song, e) => {
     if (e) e.stopPropagation();
@@ -380,8 +365,6 @@ export default function Explore() {
                   <div
                     key={song.id || song._id}
                     onClick={() => handleItemClick(song)}
-                    onMouseEnter={() => handleMouseEnter(song)}
-                    onMouseLeave={handleMouseLeave}
                     className="group relative rounded-2xl overflow-hidden bg-card border border-border cursor-pointer transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_24px_rgba(139,92,246,0.15)] flex flex-col"
                   >
                     <div className={`relative aspect-square overflow-hidden bg-[#111120] ${isPlaylist ? 'rounded-b-none' : ''}`}>

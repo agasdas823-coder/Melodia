@@ -859,40 +859,8 @@ export default function Opening() {
                 Have a question or feedback? We'd love to hear from you.
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <input
-                placeholder="your@email.com"
-                style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(147,51,234,0.2)',
-                  borderRadius: 8,
-                  padding: '10px 16px',
-                  color: '#e2e8f0',
-                  fontSize: 14,
-                  outline: 'none',
-                  width: 220,
-                }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(147,51,234,0.5)')}
-                onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(147,51,234,0.2)')}
-              />
-              <button
-                type="button"
-                style={{
-                  background: 'linear-gradient(135deg, #9333ea, #7c3aed)',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  padding: '10px 22px',
-                  borderRadius: 8,
-                  transition: 'opacity 0.2s',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-              >
-                Send Message
-              </button>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: 14, color: '#e2e8f0', fontWeight: 600 }}>conskoma@gmail.com</span>
             </div>
           </div>
 

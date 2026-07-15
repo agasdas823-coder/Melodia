@@ -20,7 +20,7 @@ const POPULAR_SEARCHES = [
 
 export default function Search() {
   const navigate = useNavigate();
-  const { currentTrack, isPlaying, playTrack, togglePlay, toggleLike, isLiked, createPlaylist, prefetchTrack, setNowPlayingOpen, setPreviewTrack } = usePlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlay, toggleLike, isLiked, createPlaylist, setNowPlayingOpen, setPreviewTrack } = usePlayer();
   const [inputValue, setInputValue] = useState("");
   const [committedQuery, setCommittedQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -88,13 +88,6 @@ export default function Search() {
       setResults(normalizedSongs);
       
       // Pre-cache first 10 results in the background (non-blocking)
-      if (normalizedSongs.length > 0) {
-        const tracksToCache = normalizedSongs.filter(s => s.type !== 'playlist').slice(0, 10);
-        tracksToCache.forEach(track => {
-          try { prefetchTrack(track); } catch (e) {}
-        });
-      }
-      
       // Update recent searches
       setRecentSearches(prev => {
         const updated = [trimmed, ...prev.filter(t => t.toLowerCase() !== trimmed.toLowerCase())].slice(0, 5);
@@ -109,21 +102,6 @@ export default function Search() {
     }
   };
 
-  const hoverTimeoutRef = useRef(null);
-
-  const handleMouseEnter = (item) => {
-    if (item.type === 'playlist') return;
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => {
-      prefetchTrack(item);
-    }, 300);
-  };
-
-  const handleMouseLeave = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-  };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -338,8 +316,6 @@ export default function Search() {
                 <div
                   key={item.id || item._id}
                   onClick={() => handleItemClick(item)}
-                  onMouseEnter={() => handleMouseEnter(item)}
-                  onMouseLeave={handleMouseLeave}
                   className="group relative rounded-2xl overflow-hidden bg-card border border-border cursor-pointer transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_24px_rgba(139,92,246,0.15)] flex flex-col"
                 >
                   <div className={`relative aspect-square overflow-hidden bg-[#111120] ${isPlaylist ? 'rounded-b-none' : ''}`}>

@@ -92,7 +92,8 @@ export default function PlaylistDetail() {
             source: result.source,
             isAiGenerated: data.isAiGenerated || false,
             createdBy: data.createdBy || data.artist || 'You',
-            isYouTube: result.source === 'api' || result.source === 'youtube'
+            isYouTube: result.source === 'api' || result.source === 'youtube',
+            isPrivate: data.isPrivate === true,
           };
 
           console.log('✅ Set formatted playlist:', formattedPlaylist.name);
@@ -168,6 +169,12 @@ export default function PlaylistDetail() {
 
   const handleShare = async () => {
     if (!playlist) return;
+
+    if (playlist.isPrivate) {
+      setShareMessage('This playlist is private and cannot be shared.');
+      setIsMenuOpen(false);
+      return;
+    }
 
     try {
       const response = await fetch(`${API_URL}/api/playlists/share`, {
@@ -339,8 +346,10 @@ export default function PlaylistDetail() {
             {playlist.isYouTube && (
               <span className="ml-2 text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">YouTube</span>
             )}
-            {!playlist.isYouTube && !playlist.isPrivate && (
-              <span className="ml-2 text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">Public</span>
+            {!playlist.isYouTube && (
+              <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${playlist.isPrivate ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                {playlist.isPrivate ? 'Private' : 'Public'}
+              </span>
             )}
           </div>
           {shareMessage && (
@@ -393,10 +402,11 @@ export default function PlaylistDetail() {
                   </button>
                   <button
                     onClick={handleShare}
-                    className="w-full text-left px-4 py-3 text-sm font-medium text-on-surface hover:bg-white/5 transition-colors flex items-center gap-2 cursor-pointer"
+                    disabled={playlist.isPrivate}
+                    className={`w-full text-left px-4 py-3 text-sm font-medium ${playlist.isPrivate ? 'text-muted-foreground cursor-not-allowed' : 'text-on-surface hover:bg-white/5 cursor-pointer'} transition-colors flex items-center gap-2 ${playlist.isPrivate ? 'bg-white/5' : ''}`}
                   >
                     <Share2 className="h-4 w-4" />
-                    Share Playlist
+                    {playlist.isPrivate ? 'Private playlists cannot be shared' : 'Share Playlist'}
                   </button>
                   <button
                     onClick={handleDelete}

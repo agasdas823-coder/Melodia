@@ -49,6 +49,14 @@ router.get('/token', async (req, res) => {
   }
 });
 
+function parseSpotifyLimit(limit) {
+  const parsed = Number(limit);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 20;
+  }
+  return Math.min(parsed, 50);
+}
+
 router.get('/search', async (req, res) => {
   try {
     const { q, limit = 20 } = req.query;
@@ -59,7 +67,8 @@ router.get('/search', async (req, res) => {
       return res.status(503).json({ success: false, error: 'Spotify is not configured on this server' });
     }
 
-    const tracks = await searchTracks(q, Number(limit) || 20);
+    const safeLimit = parseSpotifyLimit(limit);
+    const tracks = await searchTracks(q, safeLimit);
     return res.json({
       success: true,
       source: 'spotify',
@@ -69,9 +78,14 @@ router.get('/search', async (req, res) => {
     });
   } catch (error) {
     console.error('Spotify search error:', error.response?.data || error.message);
-    res.status(500).json({
+    const spotifyError = error.response?.data;
+    const message = spotifyError?.error?.message || spotifyError?.message || error.message || 'Internal Server Error';
+    res.status(error.response?.status || 500).json({
       success: false,
-      error: error.response?.data || error.message
+      error: {
+        message,
+        details: spotifyError,
+      },
     });
   }
 });

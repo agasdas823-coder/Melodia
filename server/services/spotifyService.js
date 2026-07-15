@@ -70,8 +70,17 @@ async function getAccessToken() {
   return accessToken;
 }
 
+function normalizeSpotifySearchLimit(limit, defaultLimit = 20, maxLimit = 50) {
+  const parsed = Number(limit);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return defaultLimit;
+  }
+  return Math.min(parsed, maxLimit);
+}
+
 export async function searchTracks(query, limit = 20) {
   if (!query) return [];
+  const safeLimit = normalizeSpotifySearchLimit(limit);
   const token = await getAccessToken();
   const response = await axios.get('https://api.spotify.com/v1/search', {
     headers: {
@@ -80,7 +89,7 @@ export async function searchTracks(query, limit = 20) {
     params: {
       q: query,
       type: 'track',
-      limit: Math.min(limit, 50),
+      limit: safeLimit,
     },
   });
 

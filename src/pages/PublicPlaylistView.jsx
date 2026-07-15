@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import PlaylistCover from '../components/playlist/PlaylistCover';
 import { usePlayer } from '../context/PlayerContext';
 import { Play, PlusCircle } from 'lucide-react';
+import { API_URL } from '../utils/config';
 
 export default function PublicPlaylistView() {
   const { id } = useParams();
@@ -15,7 +16,7 @@ export default function PublicPlaylistView() {
   useEffect(() => {
     async function load() {
       try {
-        const url = `/api/playlists/public/${id}`;
+        const url = `${API_URL}/api/playlists/public/${id}`;
         console.log('Fetching public playlist from:', url);
         
         const response = await fetch(url);
@@ -28,14 +29,7 @@ export default function PublicPlaylistView() {
           throw new Error(`HTTP ${response.status}: ${text || 'No response body'}`);
         }
 
-        const text = await response.text();
-        console.log('Response text:', text);
-        
-        if (!text) {
-          throw new Error('Empty response from server');
-        }
-        
-        const data = JSON.parse(text);
+        const data = await response.json();
         console.log('Parsed data:', data);
         
         if (!data.success) {

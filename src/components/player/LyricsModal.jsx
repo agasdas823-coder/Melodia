@@ -1,40 +1,32 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { usePlayer } from '../../context/PlayerContext';
 import { lyricsService } from '../../services/apiService';
-import { parseLyrics, getActiveLyricIndex } from '../../utils/lyricsParser';
+import { useSyncedLyrics } from '../../hooks/useSyncedLyrics';
+import { getTrackTitle, getTrackArtist } from '../../utils/trackMetadata';
 
 export default function LyricsModal() {
-  const { currentTrack, lyricsOpen, setLyricsOpen, isPlaying, usingFallback, lyricsCache, progress } = usePlayer();
+  const { currentTrack, lyricsOpen, setLyricsOpen, isPlaying, usingFallback, lyricsCache, progress, seek } = usePlayer();
 
   const [lyrics, setLyrics] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [lastFetchedId, setLastFetchedId] = useState(null);
   const lyricsRef = useRef(null);
 
-  const parsedLyrics = useMemo(() => {
-    if (!lyrics) return [];
-    if (Array.isArray(lyrics)) return lyrics;
-    return parseLyrics(lyrics);
-  }, [lyrics]);
+  const { parsedLyrics, activeLyricIndex } = useSyncedLyrics(lyrics, progress);
 
-  const activeLyricIndex = useMemo(() => {
-    return getActiveLyricIndex(parsedLyrics, progress);
-  }, [parsedLyrics, progress]);
-
-  // Fetch lyrics whenever the modal opens or track changes
-  useEffect(() => {
+  const loadLyrics = useCallback(async (force = false) => {
     if (!lyricsOpen || !currentTrack) return;
     const id = currentTrack.id || currentTrack._id;
-    if (id === lastFetchedId) return; // don't re-fetch for same track
+    if (!force && id === lastFetchedId && (lyrics || error)) return;
 
     setLoading(true);
     setError(null);
     setLyrics(null);
     setLastFetchedId(id);
 
-    // Check cache first
-    if (lyricsCache[id]) {
+    if (!force && lyricsCache[id]) {
       if (lyricsCache[id] === "NOT_FOUND") {
         setError('no_lyrics');
       } else {
@@ -44,21 +36,35 @@ export default function LyricsModal() {
       return;
     }
 
-    lyricsService.getLyrics(currentTrack.title, currentTrack.artist)
-      .then((response) => {
-        const data = response.data;
-        if (data.success && data.lyrics) {
-          setLyrics(data.lyrics.trim());
-        } else {
-          setError('no_lyrics');
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching lyrics:', error);
-        setError('fetch_error');
-      })
-      .finally(() => setLoading(false));
-  }, [lyricsOpen, currentTrack, lyricsCache, lastFetchedId]);
+    const title = getTrackTitle(currentTrack);
+    const artist = getTrackArtist(currentTrack);
+
+    try {
+      const response = await lyricsService.getLyrics(title, artist);
+      const data = response.data;
+      if (data.success && data.lyrics) {
+        setLyrics(data.lyrics.trim());
+      } else {
+        setError('no_lyrics');
+      }
+    } catch (fetchError) {
+      console.error('Error fetching lyrics:', fetchError);
+      setError('fetch_error');
+    } finally {
+      setLoading(false);
+    }
+  }, [lyricsOpen, currentTrack, lyricsCache, lastFetchedId, lyrics, error]);
+
+  useEffect(() => {
+    loadLyrics(false);
+  }, [lyricsOpen, currentTrack, lyricsCache, loadLyrics]);
+
+  const refreshLyrics = async () => {
+    if (!currentTrack) return;
+    setRefreshing(true);
+    await loadLyrics(true);
+    setRefreshing(false);
+  };
 
   // Close on Escape
   useEffect(() => {
@@ -66,12 +72,6 @@ export default function LyricsModal() {
     if (lyricsOpen) document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [lyricsOpen, setLyricsOpen]);
-
-  // Prevent body scroll when open
-  useEffect(() => {
-    document.body.style.overflow = lyricsOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [lyricsOpen]);
 
   useEffect(() => {
     if (!lyricsOpen || activeLyricIndex < 0 || !lyricsRef.current) return;
@@ -83,155 +83,118 @@ export default function LyricsModal() {
   if (!currentTrack) return null;
 
   return (
-    <>
-      {/* Backdrop */}
+    <div
+      className={`fixed left-1/2 bottom-24 z-[70] w-[min(96vw,42rem)] max-h-[52vh] -translate-x-1/2 rounded-3xl border border-white/10 bg-[#11121f]/95 shadow-2xl shadow-black/40 transition-all duration-500 backdrop-blur-xl ${
+        lyricsOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-6 pointer-events-none'
+      }`}
+      role="dialog"
+      aria-label="Lyrics"
+    >
       <div
-        onClick={() => setLyricsOpen(false)}
-        className={`fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
-          lyricsOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-        aria-hidden="true"
-      />
-
-      {/* Drawer */}
-      <div
-        className={`fixed bottom-0 left-0 w-full z-[70] transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-          lyricsOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Lyrics"
+        className="relative flex max-h-[52vh] flex-col overflow-hidden rounded-3xl"
+        style={{
+          background: 'linear-gradient(160deg, rgba(15,15,28,0.96) 0%, rgba(12,12,23,0.99) 100%)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 18px 40px rgba(0,0,0,0.35)',
+        }}
       >
-        {/* Pill handle */}
-        <div className="flex justify-center pt-3 pb-1 bg-transparent absolute top-0 left-0 w-full">
-          <div className="w-10 h-1 rounded-full bg-white/20" />
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-white/10">
+          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <span className="material-symbols-outlined text-base">lyrics</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-[0.2em] text-primary/70">Lyrics</p>
+            <p className="truncate text-sm font-semibold text-white">{currentTrack.title}</p>
+            <p className="truncate text-[11px] text-white/50">{currentTrack.artist || 'Unknown Artist'}</p>
+          </div>
+          <button
+            onClick={refreshLyrics}
+            disabled={loading}
+            className="ml-auto rounded-full bg-white/10 hover:bg-white/20 p-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="Refresh lyrics"
+          >
+            <span className={`material-symbols-outlined text-white text-base ${refreshing ? 'animate-spin' : ''}`}>
+              refresh
+            </span>
+          </button>
+          <button
+            onClick={() => setLyricsOpen(false)}
+            className="ml-2 rounded-full bg-white/10 hover:bg-white/20 p-2 transition-colors"
+            aria-label="Close lyrics"
+          >
+            <span className="material-symbols-outlined text-white text-base">close</span>
+          </button>
         </div>
 
         <div
-          className="relative max-h-[85vh] flex flex-col rounded-t-3xl overflow-hidden"
-          style={{
-            background: 'linear-gradient(160deg, rgba(25,25,40,0.97) 0%, rgba(20,20,35,0.99) 100%)',
-            borderTop: '1px solid rgba(192,193,255,0.12)',
-            boxShadow: '0 -20px 60px rgba(0,0,0,0.7)',
-          }}
+          ref={lyricsRef}
+          className="flex-1 overflow-y-auto px-5 py-4 hide-scrollbar"
         >
-          {/* Ambient glow from cover art */}
-          {currentTrack.coverArtUrl && (
-            <div
-              className="absolute inset-0 pointer-events-none opacity-20"
-              style={{
-                background: `radial-gradient(ellipse 80% 40% at 50% 0%, rgba(192,193,255,0.4), transparent)`,
-              }}
-            />
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="relative">
+                <span className="w-12 h-12 border-2 border-primary/20 border-t-primary rounded-full animate-spin block" />
+                <span
+                  className="material-symbols-outlined text-primary text-xl absolute inset-0 flex items-center justify-center"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  mic
+                </span>
+              </div>
+              <p className="text-on-surface-variant text-sm">Fetching lyrics…</p>
+            </div>
           )}
 
-          {/* Header */}
-          <div className="flex items-center gap-4 px-6 pt-8 pb-4 flex-shrink-0 relative">
-            {/* Cover art */}
-            <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-lg border border-white/10">
-              {currentTrack.coverArtUrl ? (
-                <img
-                  src={currentTrack.coverArtUrl}
-                  alt={currentTrack.title}
-                  className={`w-full h-full object-cover transition-all duration-1000 ${
-                    isPlaying ? 'scale-110' : 'scale-100'
-                  }`}
-                />
-              ) : (
-                <div className="w-full h-full bg-surface-container-highest flex items-center justify-center">
-                  <span className="material-symbols-outlined text-primary text-2xl">album</span>
-                </div>
-              )}
-            </div>
-
-            {/* Track info */}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-primary/80 uppercase tracking-widest mb-0.5">
-                Lyrics
-                {usingFallback && <span className="ml-2 text-primary/50 normal-case tracking-normal">· 30s preview</span>}
+          {!loading && error === 'no_lyrics' && (
+            <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+              <span className="material-symbols-outlined text-5xl text-on-surface-variant/30">lyrics</span>
+              <p className="text-on-surface-variant text-base font-medium">No lyrics found</p>
+              <p className="text-on-surface-variant/60 text-sm max-w-xs">
+                We couldn't find lyrics for "{currentTrack.title}". Try a different song.
               </p>
-              <h2 className="text-white font-bold text-lg leading-tight truncate">{currentTrack.title}</h2>
-              <p className="text-on-surface-variant text-sm truncate">{currentTrack.artist}</p>
             </div>
+          )}
 
-            {/* Close button */}
-            <button
-              onClick={() => setLyricsOpen(false)}
-              className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors flex-shrink-0"
-              aria-label="Close lyrics"
-            >
-              <span className="material-symbols-outlined text-white text-xl">close</span>
-            </button>
-          </div>
+          {!loading && error === 'fetch_error' && (
+            <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+              <span className="material-symbols-outlined text-5xl text-error/40">wifi_off</span>
+              <p className="text-error/80 text-base font-medium">Couldn't load lyrics</p>
+              <p className="text-on-surface-variant/60 text-sm">Check your connection and try again.</p>
+            </div>
+          )}
 
-          {/* Divider */}
-          <div className="h-px bg-white/5 mx-6 flex-shrink-0" />
+          {!loading && parsedLyrics.length > 0 && (
+            <div className="pb-8">
+              {parsedLyrics.map((line, i) => {
+                const isActive = i === activeLyricIndex;
+                const hasText = !!line.text?.trim();
+                const isSeekable = hasText && line.time !== null;
 
-          {/* Lyrics content */}
-          <div
-            ref={lyricsRef}
-            className="flex-1 overflow-y-auto px-6 py-6 hide-scrollbar"
-          >
-            {loading && (
-              <div className="flex flex-col items-center justify-center py-20 gap-4">
-                <div className="relative">
-                  <span className="w-12 h-12 border-2 border-primary/20 border-t-primary rounded-full animate-spin block" />
-                  <span
-                    className="material-symbols-outlined text-primary text-xl absolute inset-0 flex items-center justify-center"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
+                return (
+                  <p
+                    key={`${line.text || 'blank'}-${i}`}
+                    data-lyric-index={i}
+                    onClick={() => {
+                      if (isSeekable) seek(line.time);
+                    }}
+                    className={`leading-relaxed transition-all duration-300 ${
+                      !hasText
+                        ? 'mb-5 h-4'
+                        : isActive
+                          ? 'text-white text-lg md:text-xl font-semibold mb-3'
+                          : `text-white/55 text-base md:text-lg font-medium mb-1 ${isSeekable ? 'hover:text-white/80 cursor-pointer' : 'cursor-default'}`
+                    }`}
+                    role={isSeekable ? 'button' : undefined}
+                    tabIndex={isSeekable ? 0 : undefined}
                   >
-                    mic
-                  </span>
-                </div>
-                <p className="text-on-surface-variant text-sm">Fetching lyrics…</p>
-              </div>
-            )}
-
-            {!loading && error === 'no_lyrics' && (
-              <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-                <span className="material-symbols-outlined text-5xl text-on-surface-variant/30">lyrics</span>
-                <p className="text-on-surface-variant text-base font-medium">No lyrics found</p>
-                <p className="text-on-surface-variant/60 text-sm max-w-xs">
-                  We couldn't find lyrics for "{currentTrack.title}". Try a different song.
-                </p>
-              </div>
-            )}
-
-            {!loading && error === 'fetch_error' && (
-              <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-                <span className="material-symbols-outlined text-5xl text-error/40">wifi_off</span>
-                <p className="text-error/80 text-base font-medium">Couldn't load lyrics</p>
-                <p className="text-on-surface-variant/60 text-sm">Check your connection and try again.</p>
-              </div>
-            )}
-
-            {!loading && parsedLyrics.length > 0 && (
-              <div className="pb-8">
-                {parsedLyrics.map((line, i) => {
-                  const isActive = i === activeLyricIndex;
-                  const hasText = !!line.text?.trim();
-
-                  return (
-                    <p
-                      key={`${line.text || 'blank'}-${i}`}
-                      data-lyric-index={i}
-                      className={`leading-relaxed transition-all duration-300 ${
-                        !hasText
-                          ? 'mb-5 h-4'
-                          : isActive
-                            ? 'text-white text-lg md:text-xl font-semibold mb-3'
-                            : 'text-white/55 text-base md:text-lg font-medium mb-1 hover:text-white/80 cursor-default'
-                      }`}
-                    >
-                      {hasText ? line.text : '\u00A0'}
-                    </p>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    {hasText ? line.text : '\u00A0'}
+                  </p>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 }

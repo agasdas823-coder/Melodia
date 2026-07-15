@@ -2,14 +2,16 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 
-import { musicService } from '../services/apiService';
+import { lyricsService, musicService } from '../services/apiService';
 import { API_URL } from '../utils/config';
 import { buildSpotifyTrackQueries, getSpotifySearchCacheKey as getSpotifySearchCacheKeyForTrack, pickBestSpotifyResult } from '../utils/spotifyPlayback';
+import { getTrackTitle, getTrackArtist } from '../utils/trackMetadata';
 import { WebPlaybackSDK, useSpotifyPlayer, useWebPlaybackSDKReady } from 'react-spotify-web-playback-sdk';
 
 function SpotifySDKListener({
   setSpotifyDeviceId,
   setSpotifyPlayerInstance,
+  setSpotifyPlayerInstanceRef,
   setSpotifySDKReady,
   setProgress,
   setDuration,
@@ -29,15 +31,17 @@ function SpotifySDKListener({
     if (!spotifyPlayer) return;
 
     const handleReady = ({ device_id }) => {
-      console.log('[Spotify] Ready event fired with Device ID', device_id);
+      console.log('[Spotify] Ready event fired with Device ID', device_id, 'player:', spotifyPlayer);
       setSpotifyDeviceId(device_id);
       setSpotifyPlayerInstance(spotifyPlayer);
+      setSpotifyPlayerInstanceRef(spotifyPlayer);
     };
 
     const handleNotReady = ({ device_id }) => {
       console.log('[Spotify] Device went offline', device_id);
       setSpotifyDeviceId((currentId) => (currentId === device_id ? null : currentId));
       setSpotifyPlayerInstance((currentInstance) => (currentInstance === spotifyPlayer ? null : currentInstance));
+      setSpotifyPlayerInstanceRef((currentInstance) => (currentInstance === spotifyPlayer ? null : currentInstance));
     };
 
     const handleStateChange = (state) => {
@@ -58,7 +62,7 @@ function SpotifySDKListener({
         spotifyPlayer.removeListener('player_state_changed', handleStateChange);
       }
     };
-  }, [spotifyPlayer, setSpotifyDeviceId, setSpotifyPlayerInstance, setProgress, setDuration, setIsPlaying]);
+  }, [spotifyPlayer, setSpotifyDeviceId, setSpotifyPlayerInstance, setSpotifyPlayerInstanceRef, setProgress, setDuration, setIsPlaying]);
 
   return null;
 }
@@ -161,6 +165,9 @@ export function PlayerProvider({ children }) {
   const spotifyDeviceIdRef = useRef(null);
   const spotifyPlayerInstanceRef = useRef(null);
   const spotifySDKReadyRef = useRef(false);
+  const setSpotifyPlayerInstanceRef = useCallback((instance) => {
+    spotifyPlayerInstanceRef.current = instance;
+  }, []);
 
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { currentTrackRef.current = currentTrack; }, [currentTrack]);
@@ -296,14 +303,132 @@ export function PlayerProvider({ children }) {
     return () => { mounted = false; if (refreshTimer) clearTimeout(refreshTimer); };
   }, [spotifyRefreshToken, spotifyToken, spotifyTokenExpiry, refreshSpotifyToken]);
 
-  const getOAuthToken = useCallback(
-    (cb) => {
-      if (spotifyToken) {
-        cb(spotifyToken);
+  const updateSpotifyDeviceIdFromPlayer = useCallback(async () => {
+    const player = spotifyPlayerInstanceRef.current;
+    if (!player) return spotifyDeviceIdRef.current;
+
+    const candidateIds = [
+      player?._options?.id,
+      player?._options?.device_id,
+      player?._options?.deviceId,
+      player?._options?.playerId,
+      player?.device_id,
+      player?.deviceId,
+      player?.id,
+    ];
+
+    for (const id of candidateIds) {
+      if (typeof id === 'string' && id.trim()) {
+        setSpotifyDeviceId(id);
+        return id;
       }
-    },
-    [spotifyToken]
-  );
+    }
+
+    if (typeof player.getCurrentState !== 'function') {
+      return spotifyDeviceIdRef.current;
+    }
+
+    try {
+      const state = await player.getCurrentState();
+      const stateDeviceId = state?.device?.id || state?.device?.device_id || state?.device?.deviceId;
+      if (typeof stateDeviceId === 'string' && stateDeviceId.trim()) {
+        setSpotifyDeviceId(stateDeviceId);
+        return stateDeviceId;
+      }
+    } catch (err) {
+      console.warn('[PlayerContext] Failed to read Spotify player state for device ID:', err);
+    }
+
+    return spotifyDeviceIdRef.current;
+  }, []);
+
+  const getDeviceId = useCallback(() => {
+    if (spotifyDeviceIdRef.current) return spotifyDeviceIdRef.current;
+    const player = spotifyPlayerInstanceRef.current;
+    if (!player) return null;
+
+    const candidateIds = [
+      player?._options?.id,
+      player?._options?.device_id,
+      player?._options?.deviceId,
+      player?._options?.playerId,
+      player?.device_id,
+      player?.deviceId,
+      player?.id,
+    ];
+
+    for (const id of candidateIds) {
+      if (typeof id === 'string' && id.trim()) {
+        setSpotifyDeviceId(id);
+        return id;
+      }
+    }
+
+    console.warn('[PlayerContext] getDeviceId: candidate ids missing', {
+      playerType: typeof player,
+      candidateIds,
+      playerKeys: player ? Object.keys(player).slice(0, 25) : [],
+    });
+
+    return null;
+  }, []);
+
+  const waitForSpotifyDeviceId = useCallback(async (timeout = 10000) => {
+    const player = spotifyPlayerInstanceRef.current;
+    const start = Date.now();
+
+    if (player) {
+      try {
+        await player.connect?.();
+      } catch (err) {
+        console.warn('[PlayerContext] Spotify player connect on wait failed:', err);
+      }
+    }
+
+    while (!spotifyDeviceIdRef.current && Date.now() - start < timeout) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      if (player && !spotifyDeviceIdRef.current && Date.now() - start >= 3000) {
+        try {
+          await player.connect?.();
+        } catch (err) {
+          console.warn('[PlayerContext] Spotify player reconnect attempt failed:', err);
+        }
+      }
+    }
+
+    if (!spotifyDeviceIdRef.current) {
+      await updateSpotifyDeviceIdFromPlayer();
+    }
+
+    return spotifyDeviceIdRef.current;
+  }, [updateSpotifyDeviceIdFromPlayer]);
+
+  const ensureSpotifyPlayerReady = useCallback(async () => {
+    const player = spotifyPlayerInstanceRef.current;
+    if (!player) return false;
+    if (spotifyDeviceIdRef.current) return true;
+
+    try {
+      await player.connect?.();
+    } catch (err) {
+      console.warn('[PlayerContext] Spotify player connect retry failed:', err);
+    }
+
+    await waitForSpotifyDeviceId(7000);
+    if (spotifyDeviceIdRef.current) return true;
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    if (!spotifyDeviceIdRef.current) {
+      try {
+        await player.connect?.();
+      } catch (err) {
+        console.warn('[PlayerContext] Spotify second connect attempt failed:', err);
+      }
+    }
+
+    await updateSpotifyDeviceIdFromPlayer();
+    return Boolean(spotifyDeviceIdRef.current);
+  }, [waitForSpotifyDeviceId, updateSpotifyDeviceIdFromPlayer]);
 
   const ensureSpotifyAccessToken = useCallback(async () => {
     if (spotifyToken && (!spotifyTokenExpiry || spotifyTokenExpiry > Date.now() + 60_000)) {
@@ -335,8 +460,44 @@ export function PlayerProvider({ children }) {
       console.warn('[PlayerContext] Failed to ensure Spotify access token:', err);
     }
 
-    return spotifyToken;
+    if (spotifyToken && (!spotifyTokenExpiry || spotifyTokenExpiry > Date.now())) {
+      return spotifyToken;
+    }
+    return null;
   }, [refreshSpotifyToken, spotifyRefreshToken, spotifyToken, spotifyTokenExpiry]);
+
+  useEffect(() => {
+    if (spotifySDKReady && spotifyToken && !spotifyDeviceId && spotifyPlayerInstance) {
+      ensureSpotifyPlayerReady().catch((err) => {
+        console.warn('[PlayerContext] Spotify ensure ready failed:', err);
+      });
+    }
+  }, [spotifySDKReady, spotifyToken, spotifyDeviceId, spotifyPlayerInstance, ensureSpotifyPlayerReady]);
+
+  const getOAuthToken = useCallback(
+    (cb) => {
+      if (spotifyToken && (!spotifyTokenExpiry || spotifyTokenExpiry > Date.now() + 60_000)) {
+        cb(spotifyToken);
+        return;
+      }
+
+      ensureSpotifyAccessToken()
+        .then((token) => {
+          if (token) {
+            console.log('[Spotify] Supplying OAuth token to SDK');
+            cb(token);
+          } else if (spotifyToken && (!spotifyTokenExpiry || spotifyTokenExpiry > Date.now())) {
+            cb(spotifyToken);
+          } else {
+            console.warn('[PlayerContext] Spotify OAuth token unavailable when requested by SDK');
+          }
+        })
+        .catch((err) => {
+          console.warn('[PlayerContext] Error fetching Spotify access token for SDK:', err);
+        });
+    },
+    [ensureSpotifyAccessToken, spotifyToken, spotifyTokenExpiry]
+  );
 
   const [likedSongs, setLikedSongs] = useState([]);
   const [recentTracks, setRecentTracks] = useState([]);
@@ -638,26 +799,30 @@ export function PlayerProvider({ children }) {
     if (!track || !track.id) return;
 
     if (!lyricsCache[track.id]) {
-      fetch(`${API_URL}/api/lyrics?title=${encodeURIComponent(track.title || track.name)}&artist=${encodeURIComponent(track.artist || track.artists?.[0]?.name)}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.lyrics) {
+      const title = getTrackTitle(track);
+      const artist = getTrackArtist(track);
+
+      lyricsService.getLyrics(title, artist)
+        .then((response) => {
+          const data = response.data;
+          if (data?.lyrics) {
             setLyricsCache(prev => ({ ...prev, [track.id]: data.lyrics.trim() }));
           } else {
             setLyricsCache(prev => ({ ...prev, [track.id]: "NOT_FOUND" }));
           }
         })
-        .catch(err => console.error("Prefetch lyrics error:", err));
+        .catch((err) => {
+          console.error("Prefetch lyrics error:", err);
+        });
     }
   }, [lyricsCache]);
 
   const addToQueue = useCallback((song) => {
     setQueue((prev) => {
       if (prev.some((s) => s.id === song.id || s._id === song._id)) return prev;
-      try { prefetchTrack(song); } catch (e) {}
       return [...prev, song];
     });
-  }, [prefetchTrack]);
+  }, [setQueue]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -741,32 +906,22 @@ export function PlayerProvider({ children }) {
     setActiveSource(null);
     setIsResolving(false);
 
-    const trackSource = track.source || 'spotify';
-    const spotifyUri = track.spotifyUri || track.uri || (track.source === 'spotify' && track.id ? `spotify:track:${track.id}` : null);
+    const trackSource = track.source || null;
+    const spotifyUri = trackSource === 'spotify'
+      ? track.spotifyUri || track.uri || (track.id ? `spotify:track:${track.id}` : null)
+      : null;
     const activeSpotifyToken = await ensureSpotifyAccessToken();
 
     const tryPlaySpotifyUri = async (uri) => {
       if (!activeSpotifyToken || !uri) return false;
       try {
-        const player = spotifyPlayerInstanceRef.current;
-        if (player && !spotifyDeviceIdRef.current) {
-          try {
-            await player.connect?.();
-          } catch (err) {
-            console.warn('[PlayerContext] Spotify connect attempt failed:', err);
-          }
-        }
-
-        if (!spotifyDeviceIdRef.current) {
-          await new Promise((resolve) => setTimeout(resolve, 250));
-        }
-
-        if (!spotifyDeviceIdRef.current) {
-          console.warn('[PlayerContext] No Spotify device ID available, skipping Spotify API play');
+        const deviceId = getDeviceId() || await updateSpotifyDeviceIdFromPlayer();
+        if (!deviceId) {
+          console.warn('[PlayerContext] No Spotify device ID available, falling back to preview');
           return false;
         }
 
-        const playUrl = `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(spotifyDeviceIdRef.current)}`;
+        const playUrl = `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`;
         const playRes = await fetch(playUrl, {
           method: 'PUT',
           headers: {
@@ -798,6 +953,23 @@ export function PlayerProvider({ children }) {
     if (trackSource === 'spotify' && spotifyUri) {
       const played = await tryPlaySpotifyUri(spotifyUri);
       if (played) return;
+
+      const previewUrl = track.previewUrl || track.preview_url || track.audioUrl || track.audio_url || null;
+      if (previewUrl) {
+        console.log('🎵 [Spotify] Playing preview fallback for Spotify track', previewUrl);
+        const audio = getAudio();
+        audio.pause();
+        audio.src = previewUrl;
+        audio.currentTime = 0;
+        audio.volume = volume;
+        audio.muted = muted;
+        await audio.play().catch((err) => {
+          console.warn('[PlayerContext] Audio playback failed:', err);
+        });
+        setActiveSource('spotify');
+        setUsingFallback(true);
+        return;
+      }
     }
 
     const queries = buildSpotifyQueries(track);
@@ -1072,6 +1244,7 @@ export function PlayerProvider({ children }) {
       toggleShuffle,
       toggleLoop,
       lyricsCache,
+      setLyricsCache,
       prefetchTrack,
       nowPlayingOpen,
       setNowPlayingOpen,
@@ -1108,6 +1281,7 @@ export function PlayerProvider({ children }) {
       progress,
       queue,
       seek,
+      setLyricsCache,
       setLyricsOpen,
       setNowPlayingOpen,
       setPreviewTrack,
@@ -1140,6 +1314,7 @@ export function PlayerProvider({ children }) {
           <SpotifySDKListener
             setSpotifyDeviceId={setSpotifyDeviceId}
             setSpotifyPlayerInstance={setSpotifyPlayerInstance}
+            setSpotifyPlayerInstanceRef={setSpotifyPlayerInstanceRef}
             setSpotifySDKReady={setSpotifySDKReady}
             setProgress={setProgress}
             setDuration={setDuration}

@@ -413,5 +413,480 @@
       }
     ],
     "createdAt": "2026-07-15T14:13:07.271Z"
+  },
+  {
+    "id": "pl-1784155375096",
+    "name": "Michael Jackson greatest hits",
+    "description": "Imported from search results",
+    "genre": "",
+    "coverImage": "https://i.ytimg.com/vi/Zi_XLOBDo_Y/hqdefault.jpg",
+    "isPrivate": false,
+    "createdBy": "YouTube",
+    "shareUrl": "http://localhost:5174/shared-playlist/pl-1784155375096",
+    "tags": [],
+    "songs": [
+      {
+        "id": "Zi_XLOBDo_Y",
+        "title": "Michael Jackson - Billie Jean (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/Zi_XLOBDo_Y/hqdefault.jpg",
+        "duration": 296,
+        "duration_string": "4:56",
+        "url": "https://www.youtube.com/watch?v=Zi_XLOBDo_Y",
+        "type": "song"
+      },
+      {
+        "id": "oRdxUFDoQe0",
+        "title": "Michael Jackson - Beat It (Official 4K Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/oRdxUFDoQe0/hqdefault.jpg",
+        "duration": 299,
+        "duration_string": "4:59",
+        "url": "https://www.youtube.com/watch?v=oRdxUFDoQe0",
+        "type": "song"
+      },
+      {
+        "id": "sOnqjkJTMaA",
+        "title": "Michael Jackson - Thriller (Official 4K Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/sOnqjkJTMaA/hqdefault.jpg",
+        "duration": 822,
+        "duration_string": "13:42",
+        "url": "https://www.youtube.com/watch?v=sOnqjkJTMaA",
+        "type": "song"
+      },
+      {
+        "id": "LeiFF0gvqcc",
+        "title": "Michael Jackson - Remember the Time (Official Video - Upscaled)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/LeiFF0gvqcc/hqdefault.jpg",
+        "duration": 559,
+        "duration_string": "9:19",
+        "url": "https://www.youtube.com/watch?v=LeiFF0gvqcc",
+        "type": "song"
+      },
+      {
+        "id": "dsUXAEzaC3Q",
+        "title": "Michael Jackson - Bad (Shortened Version)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/dsUXAEzaC3Q/hqdefault.jpg",
+        "duration": 260,
+        "duration_string": "4:20",
+        "url": "https://www.youtube.com/watch?v=dsUXAEzaC3Q",
+        "type": "song"
+      },
+      {
+        "id": "F2AitTPI5U0",
+        "title": "Michael Jackson - Black Or White (Official Video - Shortened Version)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/F2AitTPI5U0/hqdefault.jpg",
+        "duration": 383,
+        "duration_string": "6:23",
+        "url": "https://www.youtube.com/watch?v=F2AitTPI5U0",
+        "type": "song"
+      },
+      {
+        "id": "HzZ_urpj4As",
+        "title": "Michael Jackson - The Way You Make Me Feel (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/HzZ_urpj4As/hqdefault.jpg",
+        "duration": 404,
+        "duration_string": "6:44",
+        "url": "https://www.youtube.com/watch?v=HzZ_urpj4As",
+        "type": "song"
+      },
+      {
+        "id": "yURRmWtbTbo",
+        "title": "Michael Jackson - Don't Stop 'Til You Get Enough (Official Video - Upscaled)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/yURRmWtbTbo/hqdefault.jpg",
+        "duration": 254,
+        "duration_string": "4:14",
+        "url": "https://www.youtube.com/watch?v=yURRmWtbTbo",
+        "type": "song"
+      },
+      {
+        "id": "5X-Mrc2l1d0",
+        "title": "Michael Jackson - Rock With You (Official Video - Upscaled)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/5X-Mrc2l1d0/hqdefault.jpg",
+        "duration": 202,
+        "duration_string": "3:22",
+        "url": "https://www.youtube.com/watch?v=5X-Mrc2l1d0",
+        "type": "song"
+      },
+      {
+        "id": "oG08ukJPtR8",
+        "title": "Michael Jackson, Justin Timberlake - Love Never Felt So Good (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/oG08ukJPtR8/hqdefault.jpg",
+        "duration": 247,
+        "duration_string": "4:07",
+        "url": "https://www.youtube.com/watch?v=oG08ukJPtR8",
+        "type": "song"
+      },
+      {
+        "id": "1-7ABIM2qjU",
+        "title": "Michael Jackson - You Rock My World (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/1-7ABIM2qjU/hqdefault.jpg",
+        "duration": 813,
+        "duration_string": "13:33",
+        "url": "https://www.youtube.com/watch?v=1-7ABIM2qjU",
+        "type": "song"
+      },
+      {
+        "id": "yUi_S6YWjZw",
+        "title": "Michael Jackson - Dirty Diana (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/yUi_S6YWjZw/hqdefault.jpg",
+        "duration": 306,
+        "duration_string": "5:06",
+        "url": "https://www.youtube.com/watch?v=yUi_S6YWjZw",
+        "type": "song"
+      },
+      {
+        "id": "9AjkUyX0rVw",
+        "title": "U.S.A. For Africa - We Are the World",
+        "artist": "USAforAfricaVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/9AjkUyX0rVw/hqdefault.jpg",
+        "duration": 431,
+        "duration_string": "7:11",
+        "url": "https://www.youtube.com/watch?v=9AjkUyX0rVw",
+        "type": "song"
+      },
+      {
+        "id": "PivWY9wn5ps",
+        "title": "Michael Jackson - Man In The Mirror (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/PivWY9wn5ps/hqdefault.jpg",
+        "duration": 304,
+        "duration_string": "5:04",
+        "url": "https://www.youtube.com/watch?v=PivWY9wn5ps",
+        "type": "song"
+      },
+      {
+        "id": "LJ7qXHjxj_0",
+        "title": "Michael Jackson - Give In To Me (Official Video - Upscaled)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/LJ7qXHjxj_0/hqdefault.jpg",
+        "duration": 330,
+        "duration_string": "5:30",
+        "url": "https://www.youtube.com/watch?v=LJ7qXHjxj_0",
+        "type": "song"
+      },
+      {
+        "id": "po0jY4WvCIc",
+        "title": "Michael Jackson Pepsi Generation",
+        "artist": "Giraldi Media",
+        "thumbnail": "https://i.ytimg.com/vi/po0jY4WvCIc/hqdefault.jpg",
+        "duration": 92,
+        "duration_string": "1:32",
+        "url": "https://www.youtube.com/watch?v=po0jY4WvCIc",
+        "type": "song"
+      },
+      {
+        "id": "Xh9Cp4rd7mI",
+        "title": "Michael Jackson - Ghosts (Official Video - Shortened Version)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/Xh9Cp4rd7mI/hqdefault.jpg",
+        "duration": 239,
+        "duration_string": "3:59",
+        "url": "https://www.youtube.com/watch?v=Xh9Cp4rd7mI",
+        "type": "song"
+      },
+      {
+        "id": "sFvENQBc-F8",
+        "title": "Michael Jackson - Smooth Criminal (Official Video - Shortened Version)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/sFvENQBc-F8/hqdefault.jpg",
+        "duration": 251,
+        "duration_string": "4:11",
+        "url": "https://www.youtube.com/watch?v=sFvENQBc-F8",
+        "type": "song"
+      },
+      {
+        "id": "aLEhh_XpJ-0",
+        "title": "Say Say Say by Paul McCartney and Michael Jackson",
+        "artist": "Giraldi Media",
+        "thumbnail": "https://i.ytimg.com/vi/aLEhh_XpJ-0/hqdefault.jpg",
+        "duration": 296,
+        "duration_string": "4:56",
+        "url": "https://www.youtube.com/watch?v=aLEhh_XpJ-0",
+        "type": "song"
+      },
+      {
+        "id": "4qLY0vbrT8Q",
+        "title": "Michael Jackson - In the Closet (Official Video - Upscaled)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/4qLY0vbrT8Q/hqdefault.jpg",
+        "duration": 367,
+        "duration_string": "6:07",
+        "url": "https://www.youtube.com/watch?v=4qLY0vbrT8Q",
+        "type": "song"
+      },
+      {
+        "id": "crbFmpezO4A",
+        "title": "Michael Jackson - Leave Me Alone (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/crbFmpezO4A/hqdefault.jpg",
+        "duration": 279,
+        "duration_string": "4:39",
+        "url": "https://www.youtube.com/watch?v=crbFmpezO4A",
+        "type": "song"
+      },
+      {
+        "id": "DGDyAb6pePo",
+        "title": "7. Jackson 5 - I Want You Back",
+        "artist": "Joel Gustafsson",
+        "thumbnail": "https://i.ytimg.com/vi/DGDyAb6pePo/hqdefault.jpg",
+        "duration": 174,
+        "duration_string": "2:54",
+        "url": "https://www.youtube.com/watch?v=DGDyAb6pePo",
+        "type": "song"
+      },
+      {
+        "id": "8KWf_-ofYgI",
+        "title": "Wanna Be Startin' Somethin'",
+        "artist": "Michael Jackson - Topic",
+        "thumbnail": "https://i.ytimg.com/vi/8KWf_-ofYgI/hqdefault.jpg",
+        "duration": 364,
+        "duration_string": "6:04",
+        "url": "https://www.youtube.com/watch?v=8KWf_-ofYgI",
+        "type": "song"
+      },
+      {
+        "id": "mj3MfUR35CM",
+        "title": "Michael Jackson - Cry (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/mj3MfUR35CM/hqdefault.jpg",
+        "duration": 298,
+        "duration_string": "4:58",
+        "url": "https://www.youtube.com/watch?v=mj3MfUR35CM",
+        "type": "song"
+      },
+      {
+        "id": "YlJvMU-5NyA",
+        "title": "Michael Jackson - A Place With No Name (Official Video)",
+        "artist": "michaeljacksonVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/YlJvMU-5NyA/hqdefault.jpg",
+        "duration": 254,
+        "duration_string": "4:14",
+        "url": "https://www.youtube.com/watch?v=YlJvMU-5NyA",
+        "type": "song"
+      },
+      {
+        "id": "COSMzAASQj4",
+        "title": "Baby Be Mine",
+        "artist": "Michael Jackson - Topic",
+        "thumbnail": "https://i.ytimg.com/vi/COSMzAASQj4/hqdefault.jpg",
+        "duration": 261,
+        "duration_string": "4:21",
+        "url": "https://www.youtube.com/watch?v=COSMzAASQj4",
+        "type": "song"
+      },
+      {
+        "id": "64n-t9Sw7F0",
+        "title": "Jackson 5 - ABC (Full Version)",
+        "artist": "big lucky",
+        "thumbnail": "https://i.ytimg.com/vi/64n-t9Sw7F0/hqdefault.jpg",
+        "duration": 576,
+        "duration_string": "9:36",
+        "url": "https://www.youtube.com/watch?v=64n-t9Sw7F0",
+        "type": "song"
+      },
+      {
+        "id": "IvmqYZr0RFo",
+        "title": "Jackson 5 - Never Can Say Goodbye",
+        "artist": "j5fan4ever2",
+        "thumbnail": "https://i.ytimg.com/vi/IvmqYZr0RFo/hqdefault.jpg",
+        "duration": 183,
+        "duration_string": "3:03",
+        "url": "https://www.youtube.com/watch?v=IvmqYZr0RFo",
+        "type": "song"
+      },
+      {
+        "id": "kMQ3jwqH_lU",
+        "title": "[HD] Whatzupwitu - Eddie Murphy ft. Michael Jackson",
+        "artist": "mjYanaGirl",
+        "thumbnail": "https://i.ytimg.com/vi/kMQ3jwqH_lU/hqdefault.jpg",
+        "duration": 412,
+        "duration_string": "6:52",
+        "url": "https://www.youtube.com/watch?v=kMQ3jwqH_lU",
+        "type": "song"
+      },
+      {
+        "id": "z-OteAgvINc",
+        "title": "Rockin' Robin The Jackson  5 Five 1972 Michael Joseph Jackson 08-29-1958 To 06-25-2009",
+        "artist": "Gold Song",
+        "thumbnail": "https://i.ytimg.com/vi/z-OteAgvINc/hqdefault.jpg",
+        "duration": 158,
+        "duration_string": "2:38",
+        "url": "https://www.youtube.com/watch?v=z-OteAgvINc",
+        "type": "song"
+      },
+      {
+        "id": "kldVOhKe4rg",
+        "title": "Jacksons ft. Michael Jackson - Shake Your Body (Down To The Ground) • TopPop",
+        "artist": "TopPop",
+        "thumbnail": "https://i.ytimg.com/vi/kldVOhKe4rg/hqdefault.jpg",
+        "duration": 221,
+        "duration_string": "3:41",
+        "url": "https://www.youtube.com/watch?v=kldVOhKe4rg",
+        "type": "song"
+      },
+      {
+        "id": "GeAlVg5uehc",
+        "title": "Another Part of Me (2012 Remaster)",
+        "artist": "Michael Jackson - Topic",
+        "thumbnail": "https://i.ytimg.com/vi/GeAlVg5uehc/hqdefault.jpg",
+        "duration": 235,
+        "duration_string": "3:55",
+        "url": "https://www.youtube.com/watch?v=GeAlVg5uehc",
+        "type": "song"
+      },
+      {
+        "id": "Xaluf9uPybs",
+        "title": "Just Good Friends (2012 Remaster)",
+        "artist": "Michael Jackson - Topic",
+        "thumbnail": "https://i.ytimg.com/vi/Xaluf9uPybs/hqdefault.jpg",
+        "duration": 247,
+        "duration_string": "4:07",
+        "url": "https://www.youtube.com/watch?v=Xaluf9uPybs",
+        "type": "song"
+      },
+      {
+        "id": "aXr5jDGwcvE",
+        "title": "We Are The World - Michael Jackson Lionel Richie Cindy Lauper Steve Wonder Bruce Springsteen....mp4",
+        "artist": "littleperfectlisa",
+        "thumbnail": "https://i.ytimg.com/vi/aXr5jDGwcvE/hqdefault.jpg",
+        "duration": 432,
+        "duration_string": "7:12",
+        "url": "https://www.youtube.com/watch?v=aXr5jDGwcvE",
+        "type": "song"
+      },
+      {
+        "id": "VzYpE4z8YIc",
+        "title": "The Jacksons - Even Though You're Gone (Official Video)",
+        "artist": "TheJacksonsVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/VzYpE4z8YIc/hqdefault.jpg",
+        "duration": 201,
+        "duration_string": "3:21",
+        "url": "https://www.youtube.com/watch?v=VzYpE4z8YIc",
+        "type": "song"
+      },
+      {
+        "id": "DaWUm4GS3ac",
+        "title": "We're Almost There",
+        "artist": "Michael Jackson - Topic",
+        "thumbnail": "https://i.ytimg.com/vi/DaWUm4GS3ac/hqdefault.jpg",
+        "duration": 223,
+        "duration_string": "3:43",
+        "url": "https://www.youtube.com/watch?v=DaWUm4GS3ac",
+        "type": "song"
+      },
+      {
+        "id": "RQtYbR8vMdo",
+        "title": "The Jacksons - Nothin (That Compares 2 U) (Official Video)",
+        "artist": "TheJacksonsVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/RQtYbR8vMdo/hqdefault.jpg",
+        "duration": 250,
+        "duration_string": "4:10",
+        "url": "https://www.youtube.com/watch?v=RQtYbR8vMdo",
+        "type": "song"
+      },
+      {
+        "id": "JGRGxkrVHLY",
+        "title": "Micheal Jackson Pepsi Generation",
+        "artist": "DarthKofi391",
+        "thumbnail": "https://i.ytimg.com/vi/JGRGxkrVHLY/hqdefault.jpg",
+        "duration": 80,
+        "duration_string": "1:20",
+        "url": "https://www.youtube.com/watch?v=JGRGxkrVHLY",
+        "type": "song"
+      },
+      {
+        "id": "C3sjkfVNgPc",
+        "title": "My Girl",
+        "artist": "Michael Jackson - Topic",
+        "thumbnail": "https://i.ytimg.com/vi/C3sjkfVNgPc/hqdefault.jpg",
+        "duration": 189,
+        "duration_string": "3:09",
+        "url": "https://www.youtube.com/watch?v=C3sjkfVNgPc",
+        "type": "song"
+      },
+      {
+        "id": "WmCVNUWh59w",
+        "title": "The Jacksons - Art of Madness (Official Video)",
+        "artist": "TheJacksonsVEVO",
+        "thumbnail": "https://i.ytimg.com/vi/WmCVNUWh59w/hqdefault.jpg",
+        "duration": 309,
+        "duration_string": "5:09",
+        "url": "https://www.youtube.com/watch?v=WmCVNUWh59w",
+        "type": "song"
+      },
+      {
+        "id": "VzLzUqdGBNo",
+        "title": "Deleted video",
+        "artist": "Sascha Nowak",
+        "thumbnail": "https://i.ytimg.com/vi/Zi_XLOBDo_Y/hqdefault.jpg",
+        "duration": 0,
+        "duration_string": "0:00",
+        "url": "https://www.youtube.com/watch?v=VzLzUqdGBNo",
+        "type": "song"
+      },
+      {
+        "id": "wGPlCLf9AZ8",
+        "title": "Private video",
+        "artist": "Sascha Nowak",
+        "thumbnail": "https://i.ytimg.com/vi/Zi_XLOBDo_Y/hqdefault.jpg",
+        "duration": 0,
+        "duration_string": "0:00",
+        "url": "https://www.youtube.com/watch?v=wGPlCLf9AZ8",
+        "type": "song"
+      }
+    ],
+    "createdAt": "2026-07-15T22:44:51.008Z"
+  },
+  {
+    "id": "pl-1784155997741",
+    "name": "asdasdas",
+    "description": "dasdas",
+    "genre": "Blues",
+    "coverImage": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+    "isPrivate": true,
+    "createdBy": "Unknown",
+    "shareUrl": "http://localhost:5174/shared-playlist/pl-1784155997741",
+    "tags": [
+      "asdas"
+    ],
+    "songs": [],
+    "createdAt": "2026-07-15T22:53:17.741Z"
+  },
+  {
+    "id": "pl-1784156069857",
+    "name": "asdas",
+    "description": "asda",
+    "genre": "Metal",
+    "coverImage": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+    "isPrivate": false,
+    "createdBy": "Unknown",
+    "shareUrl": "http://localhost:5174/shared-playlist/pl-1784156069857",
+    "tags": [],
+    "songs": [],
+    "createdAt": "2026-07-15T22:54:29.857Z"
+  },
+  {
+    "id": "pl-1784156069865",
+    "name": "asdas",
+    "description": "asda",
+    "genre": "",
+    "coverImage": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+    "isPrivate": false,
+    "createdBy": "ysp",
+    "shareUrl": "http://localhost:5174/shared-playlist/pl-1784156069865",
+    "tags": [],
+    "songs": [],
+    "createdAt": "2026-07-15T22:54:35.673Z"
   }
 ]
