@@ -3,21 +3,13 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
+import http from 'http';
 import mongoose from 'mongoose';
+import app from './app.js';
 
 console.log('🚀 Server starting...');
 console.log('📁 Current directory:', process.cwd());
-console.log('📁 __dirname:', import.meta.url);
 
-try {
-  // Your existing code
-  import('./app.js').then(() => {
-    console.log('✅ App imported successfully');
-  });
-} catch (err) {
-  console.error('❌ CRASH:', err.message);
-  console.error(err.stack);
-}
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -65,8 +57,6 @@ if (process.env.MONGODB_URI) {
   console.log('  MONGODB_URI starts with:', process.env.MONGODB_URI.substring(0, 10) + '...');
 }
 
-import app from './app.js';
-
 const PORT = process.env.PORT || 8080;
 
 async function connectDatabase() {
@@ -89,13 +79,15 @@ async function connectDatabase() {
 
 await connectDatabase();
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 Server running on port ${PORT}`);
+const server = http.createServer(app);
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Health server running on port ${PORT}`);
   console.log(`📍 http://localhost:${PORT}`);
   console.log(`🩺 Health check: http://localhost:${PORT}/health`);
 });
 
-process.on('unhandledRejection', (err, promise) => {
-  console.log(`❌ Error: ${err.message}`);
+process.on('unhandledRejection', (err) => {
+  console.error(`❌ Error: ${err?.message || err}`);
   server.close(() => process.exit(1));
 });
