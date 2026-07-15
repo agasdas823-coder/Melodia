@@ -34,5 +34,8 @@ dist-ssr
 server/*-player-script.js
 *-player-script.js
 
+# Local reference repo clone
+_ref-melodia/
+
 # Local Cobalt repo clone
 cobalt-local/
