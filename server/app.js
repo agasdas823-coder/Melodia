@@ -28,18 +28,18 @@ const corsOptions = {
       'https://melody-production-e1a0.up.railway.app',
       'https://melody-production-0d59.up.railway.app',
       'https://melodia-wheat.vercel.app',
-      'http://localhost:5174',
-      'http://127.0.0.1:5174',
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
     ];
 
-    // Allow any Vercel preview deployment
-    if (allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
+    // Allow any Vercel preview deployment or localhost port
+    if (
+      allowedOrigins.includes(origin) || 
+      /\.vercel\.app$/.test(origin) ||
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+    ) {
       return callback(null, true);
     }
 
-    callback(new Error('Not allowed by CORS'));
+    callback(null, false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
