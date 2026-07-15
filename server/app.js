@@ -19,20 +19,19 @@ import playlistRoutes from './routes/playlists.js';
 
 const app = express();
 
+const allowedOrigins = [
+  'https://melodia-wheat.vercel.app',
+  'https://melody-production-0d59.up.railway.app',
+  'https://melody-production-ela0.up.railway.app',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+];
+
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
-
-    const allowedOrigins = [
-      'https://melodia-wheat.vercel.app',
-      'https://melodia-wheat.vercel.app/',
-      'https://melody-production-0d59.up.railway.app',
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:5174',
-    ];
 
     if (allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
@@ -42,7 +41,8 @@ const corsOptions = {
     callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['Content-Length', 'X-Kuma-Revision'],
   credentials: true,
   preflightContinue: false,
   optionsSuccessStatus: 204,
@@ -50,6 +50,20 @@ const corsOptions = {
 
 app.options('*', cors(corsOptions));
 app.use(cors(corsOptions));
+
+app.use((req, res, next) => {
+  const requestOrigin = req.headers.origin;
+  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    res.header('Access-Control-Allow-Origin', requestOrigin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Authorization, Accept');
+  }
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 // Log all requests for debugging
 app.use((req, res, next) => {
