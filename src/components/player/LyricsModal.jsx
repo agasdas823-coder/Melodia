@@ -5,7 +5,7 @@ import { useSyncedLyrics } from '../../hooks/useSyncedLyrics';
 import { getTrackTitle, getTrackArtist } from '../../utils/trackMetadata';
 
 export default function LyricsModal() {
-  const { currentTrack, lyricsOpen, setLyricsOpen, isPlaying, usingFallback, lyricsCache, progress, seek } = usePlayer();
+  const { currentTrack, lyricsOpen, setLyricsOpen, isPlaying, usingFallback, lyricsCache, progress, seek, lyricsSyncOffsetMs } = usePlayer();
 
   const [lyrics, setLyrics] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -14,7 +14,7 @@ export default function LyricsModal() {
   const [lastFetchedId, setLastFetchedId] = useState(null);
   const lyricsRef = useRef(null);
 
-  const { parsedLyrics, activeLyricIndex } = useSyncedLyrics(lyrics, progress);
+  const { parsedLyrics, activeLyricIndex } = useSyncedLyrics(lyrics, progress, lyricsSyncOffsetMs);
 
   const loadLyrics = useCallback(async (force = false) => {
     if (!lyricsOpen || !currentTrack) return;

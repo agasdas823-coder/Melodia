@@ -25,6 +25,7 @@ import {
   Volume2,
   VolumeX,
   Music2,
+  Mic2,
   Bell,
   User,
   ListMusic,
@@ -59,6 +60,8 @@ export default function AppLayout() {
     nowPlayingOpen,
     setNowPlayingOpen,
     activeSource,
+    queue,
+    playTrack,
   } = usePlayer();
 
   const navigate = useNavigate();
@@ -68,6 +71,7 @@ export default function AppLayout() {
   const [repeated, setRepeated] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+  const [queuePanelOpen, setQueuePanelOpen] = useState(false);
 
   // Avatar from user context
   const userAvatar = user?.avatar || null;
@@ -140,6 +144,11 @@ export default function AppLayout() {
     setVolume(parseFloat(e.target.value));
   };
 
+  const upcomingQueue = queue.filter((track) => {
+    const currentId = currentTrack?.id || currentTrack?._id;
+    const trackId = track?.id || track?._id;
+    return trackId && currentId ? trackId !== currentId : true;
+  });
 
   return (
     <div
@@ -454,6 +463,13 @@ export default function AppLayout() {
           {/* Volume and Lyric Options */}
           <div className="flex items-center justify-end gap-3 w-60 shrink-0 text-muted-foreground">
             <button
+              onClick={() => setQueuePanelOpen(true)}
+              className="hover:text-white transition-colors cursor-pointer"
+              title="Queue"
+            >
+              <ListMusic className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => setNowPlayingOpen(true)}
               className="hover:text-white transition-colors cursor-pointer"
               title="Expand Player"
@@ -465,7 +481,7 @@ export default function AppLayout() {
               className={`hover:text-white transition-colors cursor-pointer ${lyricsOpen ? "text-primary" : ""}`}
               title="Lyrics"
             >
-              <ListMusic className="w-4 h-4" />
+              <Mic2 className="w-4 h-4" />
             </button>
             <button
               onClick={toggleMute}
@@ -491,6 +507,80 @@ export default function AppLayout() {
           </div>
         </div>
       )}
+
+      <div className={`fixed inset-0 z-[45] transition-all duration-300 ${queuePanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}>
+        <div
+          className={`absolute inset-0 bg-black/45 backdrop-blur-sm transition-opacity duration-300 ${queuePanelOpen ? "opacity-100" : "opacity-0"}`}
+          onClick={() => setQueuePanelOpen(false)}
+        />
+        <div
+          className={`absolute right-0 top-0 h-full w-[min(92vw,26rem)] border-l border-white/10 bg-[#07070F]/95 shadow-2xl shadow-black/40 backdrop-blur-xl transition-transform duration-300 flex flex-col ${queuePanelOpen ? "translate-x-0" : "translate-x-full"}`}
+        >
+          <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 flex-shrink-0">
+            <div>
+              <p className="text-sm font-semibold text-white">Queue</p>
+              <p className="text-xs text-muted-foreground">Up next from your current playback</p>
+            </div>
+            <button
+              onClick={() => setQueuePanelOpen(false)}
+              className="rounded-full bg-white/8 px-2 py-1 text-xs text-muted-foreground hover:text-white transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="h-full min-h-0 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
+              {currentTrack && (
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.18)]">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary/70">Now Playing</p>
+                  <div className="mt-4 flex items-center gap-3">
+                    <img
+                      src={currentTrack.thumbnail || currentTrack.thumbnail_medium || currentTrack.coverArtUrl || "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=200&h=200&fit=crop&auto=format"}
+                      alt={currentTrack.title}
+                      className="h-14 w-14 rounded-2xl object-cover"
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">{currentTrack.title}</p>
+                      <p className="truncate text-xs text-muted-foreground">{currentTrack.artist}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {upcomingQueue.length === 0 ? (
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-muted-foreground">
+                  The queue is empty. Play a playlist or add songs to queue to build your next up list.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingQueue.map((track, index) => (
+                    <button
+                      key={`${track.id || track._id || index}-${index}`}
+                      onClick={() => {
+                        playTrack(track, queue);
+                        setQueuePanelOpen(false);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-[26px] border border-white/10 bg-[#090919]/95 p-3 text-left transition-all duration-200 hover:border-primary/30 hover:bg-white/10"
+                    >
+                      <img
+                        src={track.thumbnail || track.thumbnail_medium || track.coverArtUrl || "https://images.unsplash.com/photo-1549046701-6bd11cf71796?w=400&h=400&fit=crop&auto=format"}
+                        alt={track.title}
+                        className="h-12 w-12 shrink-0 rounded-2xl object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-white">{track.title}</p>
+                        <p className="truncate text-xs text-muted-foreground">{track.artist}</p>
+                      </div>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{index + 1}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Lyrics Modal */}
       <LyricsModal />

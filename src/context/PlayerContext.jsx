@@ -6,19 +6,22 @@ import { lyricsService, musicService } from '../services/apiService';
 import { API_URL } from '../utils/config';
 import { buildSpotifyTrackQueries, getSpotifySearchCacheKey as getSpotifySearchCacheKeyForTrack, pickBestSpotifyResult } from '../utils/spotifyPlayback';
 import { getTrackTitle, getTrackArtist } from '../utils/trackMetadata';
-import { WebPlaybackSDK, useSpotifyPlayer, useWebPlaybackSDKReady } from 'react-spotify-web-playback-sdk';
+import { WebPlaybackSDK, useSpotifyPlayer, useWebPlaybackSDKReady, usePlayerDevice, useErrorState } from 'react-spotify-web-playback-sdk';
 
 function SpotifySDKListener({
   setSpotifyDeviceId,
   setSpotifyPlayerInstance,
   setSpotifyPlayerInstanceRef,
   setSpotifySDKReady,
+  setSpotifyToken,
   setProgress,
   setDuration,
   setIsPlaying,
 }) {
   const spotifyPlayer = useSpotifyPlayer();
   const spotifyReady = useWebPlaybackSDKReady();
+  const playerDevice = usePlayerDevice();
+  const errorState = useErrorState();
 
   useEffect(() => {
     setSpotifySDKReady(spotifyReady);
@@ -51,18 +54,70 @@ function SpotifySDKListener({
       setIsPlaying(!state.paused);
     };
 
+    const handleAuthError = (error) => {
+      console.warn('[Spotify] authentication_error', error);
+      setSpotifyToken(null);
+      localStorage.removeItem('spotify_access_token');
+      localStorage.removeItem('spotify_token_expiry');
+      setSpotifyDeviceId(null);
+      setSpotifyPlayerInstance(null);
+      setSpotifyPlayerInstanceRef(null);
+      setSpotifySDKReady(false);
+      if (window.location.search.includes('spotify_access_token')) {
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('spotify_access_token');
+        cleanUrl.searchParams.delete('spotify_refresh_token');
+        cleanUrl.searchParams.delete('expires_in');
+        window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search);
+      }
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 200);
+    };
+
+    const handleInitError = (error) => {
+      console.warn('[Spotify] initialization_error', error);
+      setSpotifyToken(null);
+      setSpotifyDeviceId(null);
+      setSpotifyPlayerInstance(null);
+      setSpotifyPlayerInstanceRef(null);
+      setSpotifySDKReady(false);
+    };
+
     spotifyPlayer.addListener('ready', handleReady);
     spotifyPlayer.addListener('not_ready', handleNotReady);
     spotifyPlayer.addListener('player_state_changed', handleStateChange);
+    spotifyPlayer.addListener('authentication_error', handleAuthError);
+    spotifyPlayer.addListener('initialization_error', handleInitError);
 
     return () => {
       if (spotifyPlayer.removeListener) {
         spotifyPlayer.removeListener('ready', handleReady);
         spotifyPlayer.removeListener('not_ready', handleNotReady);
         spotifyPlayer.removeListener('player_state_changed', handleStateChange);
+        spotifyPlayer.removeListener('authentication_error', handleAuthError);
+        spotifyPlayer.removeListener('initialization_error', handleInitError);
       }
     };
   }, [spotifyPlayer, setSpotifyDeviceId, setSpotifyPlayerInstance, setSpotifyPlayerInstanceRef, setProgress, setDuration, setIsPlaying]);
+
+  useEffect(() => {
+    if (!playerDevice) return;
+    if (playerDevice.status === 'ready') {
+      setSpotifyDeviceId(playerDevice.device_id);
+    }
+  }, [playerDevice, setSpotifyDeviceId]);
+
+  useEffect(() => {
+    if (errorState) {
+      console.warn('[Spotify] SDK error state', errorState);
+      if (errorState.type === 'authentication_error') {
+        setSpotifyToken(null);
+        localStorage.removeItem('spotify_access_token');
+        localStorage.removeItem('spotify_token_expiry');
+      }
+    }
+  }, [errorState]);
 
   return null;
 }
@@ -111,6 +166,7 @@ export function PlayerProvider({ children }) {
   const [usingFallback, setUsingFallback] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [lyricsCache, setLyricsCache] = useState({});
+  const [lyricsSyncOffsetMs, setLyricsSyncOffsetMs] = useState(0);
   const [isShuffled, setIsShuffled] = useState(false);
   const [isLooped, setIsLooped] = useState(false);
   const [nowPlayingOpen, setNowPlayingOpen] = useState(false);
@@ -142,6 +198,8 @@ export function PlayerProvider({ children }) {
   const [spotifyDeviceId, setSpotifyDeviceId] = useState(null);
   const [spotifySDKReady, setSpotifySDKReady] = useState(false);
 
+  const lyricsRafRef = useRef(null);
+
   const buildSpotifyQueries = (track) => buildSpotifyTrackQueries(track);
   const getSpotifySearchCacheKey = (track) => getSpotifySearchCacheKeyForTrack(track);
 
@@ -150,6 +208,7 @@ export function PlayerProvider({ children }) {
   const queueRef = useRef(queue);
   const currentIndexRef = useRef(currentIndex);
   const durationRef = useRef(duration);
+  const isLoopedRef = useRef(isLooped);
   const prefetchTriggeredRef = useRef(false);
   const currentTrackRef = useRef(null);
   const retriedTracksRef = useRef({});
@@ -171,6 +230,7 @@ export function PlayerProvider({ children }) {
 
   useEffect(() => { queueRef.current = queue; }, [queue]);
   useEffect(() => { currentTrackRef.current = currentTrack; }, [currentTrack]);
+  useEffect(() => { isLoopedRef.current = isLooped; }, [isLooped]);
   useEffect(() => { 
     currentIndexRef.current = currentIndex; 
     prefetchTriggeredRef.current = false; 
@@ -474,29 +534,32 @@ export function PlayerProvider({ children }) {
     }
   }, [spotifySDKReady, spotifyToken, spotifyDeviceId, spotifyPlayerInstance, ensureSpotifyPlayerReady]);
 
+  useEffect(() => {
+    if (spotifyPlayerInstance && !spotifyDeviceId) {
+      ensureSpotifyPlayerReady().catch((err) => {
+        console.warn('[PlayerContext] Spotify device readiness check failed:', err);
+      });
+    }
+  }, [spotifyPlayerInstance, spotifyDeviceId, ensureSpotifyPlayerReady]);
+
   const getOAuthToken = useCallback(
     (cb) => {
-      if (spotifyToken && (!spotifyTokenExpiry || spotifyTokenExpiry > Date.now() + 60_000)) {
-        cb(spotifyToken);
-        return;
-      }
-
       ensureSpotifyAccessToken()
         .then((token) => {
           if (token) {
             console.log('[Spotify] Supplying OAuth token to SDK');
             cb(token);
-          } else if (spotifyToken && (!spotifyTokenExpiry || spotifyTokenExpiry > Date.now())) {
-            cb(spotifyToken);
           } else {
             console.warn('[PlayerContext] Spotify OAuth token unavailable when requested by SDK');
+            cb('');
           }
         })
         .catch((err) => {
           console.warn('[PlayerContext] Error fetching Spotify access token for SDK:', err);
+          cb('');
         });
     },
-    [ensureSpotifyAccessToken, spotifyToken, spotifyTokenExpiry]
+    [ensureSpotifyAccessToken]
   );
 
   const [likedSongs, setLikedSongs] = useState([]);
@@ -671,33 +734,45 @@ export function PlayerProvider({ children }) {
   }, []);
 
   const handleNext = useCallback(() => {
-    setQueue((q) => {
-      setCurrentIndex((ci) => {
-        if (q.length === 0) return -1;
+    const queueList = queueRef.current;
+    if (!queueList?.length) {
+      setIsPlaying(false);
+      setProgress(0);
+      return;
+    }
 
-        let nextIdx;
-        if (isLooped) {
-          nextIdx = ci;
-        } else if (isShuffled) {
-          nextIdx = Math.floor(Math.random() * q.length);
-        } else {
-          nextIdx = (ci + 1) % q.length;
-        }
+    if (!isLoopedRef.current && queueList.length === 1) {
+      setIsPlaying(false);
+      setProgress(0);
+      return;
+    }
 
-        if (q[nextIdx]) {
-          const next = q[nextIdx];
-          setCurrentTrack(next);
-          setProgress(0);
-          setDuration(next.duration || 0);
-          setActiveSource(null);
-          if (playTrackRef.current) playTrackRef.current(next, q);
-        }
+    const currentIndexValue = currentIndexRef.current >= 0
+      ? currentIndexRef.current
+      : queueList.findIndex((item) => item.id === currentTrackRef.current?.id || item._id === currentTrackRef.current?._id);
 
-        return nextIdx;
-      });
-      return q;
-    });
-  }, [isLooped, isShuffled]);
+    let nextIdx;
+    if (isLoopedRef.current) {
+      nextIdx = currentIndexValue >= 0 ? currentIndexValue : 0;
+    } else if (isShuffled) {
+      nextIdx = Math.floor(Math.random() * queueList.length);
+    } else {
+      nextIdx = (currentIndexValue + 1) % queueList.length;
+    }
+
+    const next = queueList[nextIdx];
+    if (!next) {
+      setIsPlaying(false);
+      return;
+    }
+
+    setCurrentIndex(nextIdx);
+    setCurrentTrack(next);
+    setProgress(0);
+    setDuration(next.duration || 0);
+    setActiveSource(null);
+    playTrackRef.current?.(next, queueList);
+  }, [isShuffled]);
 
   useEffect(() => {
     handleNextRef.current = handleNext;
@@ -709,25 +784,62 @@ export function PlayerProvider({ children }) {
     audio.volume = volumeRef.current;
     audio.muted = mutedRef.current;
 
+    const stopAudioProgressLoop = () => {
+      if (lyricsRafRef.current) {
+        cancelAnimationFrame(lyricsRafRef.current);
+        lyricsRafRef.current = null;
+      }
+    };
+
+    const updateAudioProgress = () => {
+      const currentAudio = audioRef.current;
+      if (!currentAudio) {
+        lyricsRafRef.current = null;
+        return;
+      }
+
+      setProgress(currentAudio.currentTime);
+
+      if (!currentAudio.paused && !currentAudio.ended) {
+        lyricsRafRef.current = requestAnimationFrame(updateAudioProgress);
+      } else {
+        lyricsRafRef.current = null;
+      }
+    };
+
+    const startAudioProgressLoop = () => {
+      if (lyricsRafRef.current !== null) return;
+      lyricsRafRef.current = requestAnimationFrame(updateAudioProgress);
+    };
+
     audio.addEventListener('ended', () => {
+      stopAudioProgressLoop();
+      if (isLoopedRef.current) {
+        audio.currentTime = 0;
+        audio.play().catch((err) => console.warn('[PlayerContext] Audio replay failed:', err));
+        return;
+      }
       setIsPlaying(false);
       handleNextRef.current?.();
-    });
-
-    audio.addEventListener('timeupdate', () => {
-      const now = Date.now();
-      if (now - lastProgressUpdateRef.current >= 500) {
-        lastProgressUpdateRef.current = now;
-        setProgress(audio.currentTime);
-      }
     });
 
     audio.addEventListener('loadedmetadata', () => {
       setDuration(audio.duration || 0);
     });
 
-    audio.addEventListener('play', () => setIsPlaying(true));
-    audio.addEventListener('pause', () => setIsPlaying(false));
+    audio.addEventListener('play', () => {
+      setIsPlaying(true);
+      startAudioProgressLoop();
+    });
+
+    audio.addEventListener('pause', () => {
+      setIsPlaying(false);
+      stopAudioProgressLoop();
+    });
+
+    audio.addEventListener('seeked', () => {
+      setProgress(audio.currentTime);
+    });
 
     return audio;
   }, []);
@@ -833,6 +945,15 @@ export function PlayerProvider({ children }) {
 
   useEffect(() => {
     return () => {
+      if (lyricsRafRef.current) {
+        cancelAnimationFrame(lyricsRafRef.current);
+        lyricsRafRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = '';
@@ -914,8 +1035,19 @@ export function PlayerProvider({ children }) {
 
     const tryPlaySpotifyUri = async (uri) => {
       if (!activeSpotifyToken || !uri) return false;
+      await ensureSpotifyPlayerReady();
       try {
-        const deviceId = getDeviceId() || await updateSpotifyDeviceIdFromPlayer();
+        let deviceId = getDeviceId() || await updateSpotifyDeviceIdFromPlayer();
+        if (!deviceId && spotifyPlayerInstanceRef.current) {
+          console.warn('[PlayerContext] No deviceId yet; retrying Spotify connection');
+          try {
+            await spotifyPlayerInstanceRef.current.connect?.();
+          } catch (err) {
+            console.warn('[PlayerContext] Spotify reconnect attempt failed:', err);
+          }
+          deviceId = getDeviceId() || await updateSpotifyDeviceIdFromPlayer();
+        }
+        console.log('[PlayerContext] tryPlaySpotifyUri active token exists:', Boolean(activeSpotifyToken), 'deviceId:', deviceId, 'uri:', uri);
         if (!deviceId) {
           console.warn('[PlayerContext] No Spotify device ID available, falling back to preview');
           return false;
@@ -943,6 +1075,34 @@ export function PlayerProvider({ children }) {
           return true;
         }
 
+        if (playRes.status === 401 || playRes.status === 403) {
+          console.warn('[PlayerContext] Spotify play auth error, refreshing token and retrying');
+          const refreshed = spotifyRefreshToken ? await refreshSpotifyToken(spotifyRefreshToken) : null;
+          const retryToken = refreshed?.token || await ensureSpotifyAccessToken();
+          if (retryToken && retryToken !== activeSpotifyToken) {
+            const retryRes = await fetch(playUrl, {
+              method: 'PUT',
+              headers: {
+                Authorization: `Bearer ${retryToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ uris: [uri] }),
+            });
+            if (retryRes.status === 204 || retryRes.ok) {
+              try {
+                spotifyPlayerInstanceRef.current?.resume?.();
+              } catch (err) {
+                console.warn('[PlayerContext] Spotify resume failed after retry:', err);
+              }
+              console.log('🎵 [Spotify] Started full-track playback after token refresh', uri);
+              setActiveSource('spotify');
+              setUsingFallback(false);
+              return true;
+            }
+            console.warn('[PlayerContext] Spotify retry play call failed', retryRes.status, await retryRes.text().catch(() => ''));
+          }
+        }
+
         console.warn('[PlayerContext] Spotify play call failed', playRes.status, await playRes.text().catch(() => ''));
       } catch (err) {
         console.warn('[PlayerContext] Spotify play request error:', err);
@@ -951,6 +1111,7 @@ export function PlayerProvider({ children }) {
     };
 
     if (trackSource === 'spotify' && spotifyUri) {
+      await ensureSpotifyPlayerReady();
       const played = await tryPlaySpotifyUri(spotifyUri);
       if (played) return;
 
@@ -1218,6 +1379,8 @@ export function PlayerProvider({ children }) {
       isResolving,
       lyricsOpen,
       setLyricsOpen,
+      lyricsSyncOffsetMs,
+      setLyricsSyncOffsetMs,
       loadTrack,
       playTrack,
       togglePlay,
@@ -1274,6 +1437,7 @@ export function PlayerProvider({ children }) {
       loadTrack,
       lyricsCache,
       lyricsOpen,
+      lyricsSyncOffsetMs,
       nowPlayingOpen,
       playerReady,
       playTrack,
@@ -1283,6 +1447,7 @@ export function PlayerProvider({ children }) {
       seek,
       setLyricsCache,
       setLyricsOpen,
+      setLyricsSyncOffsetMs,
       setNowPlayingOpen,
       setPreviewTrack,
       setVolume,
@@ -1304,27 +1469,24 @@ export function PlayerProvider({ children }) {
     <PlayerContext.Provider
       value={contextValue}
     >
-      {spotifyToken ? (
-        <WebPlaybackSDK
-          initialDeviceName="Melodia Web Player"
-          getOAuthToken={getOAuthToken}
-          initialVolume={volume}
-          connectOnInitialized={true}
-        >
-          <SpotifySDKListener
-            setSpotifyDeviceId={setSpotifyDeviceId}
-            setSpotifyPlayerInstance={setSpotifyPlayerInstance}
-            setSpotifyPlayerInstanceRef={setSpotifyPlayerInstanceRef}
-            setSpotifySDKReady={setSpotifySDKReady}
-            setProgress={setProgress}
-            setDuration={setDuration}
-            setIsPlaying={setIsPlaying}
-          />
-          {children}
-        </WebPlaybackSDK>
-      ) : (
-        children
-      )}
+      <WebPlaybackSDK
+        initialDeviceName="Melodia Web Player"
+        getOAuthToken={getOAuthToken}
+        initialVolume={volume}
+        connectOnInitialized={true}
+      >
+        <SpotifySDKListener
+          setSpotifyDeviceId={setSpotifyDeviceId}
+          setSpotifyPlayerInstance={setSpotifyPlayerInstance}
+          setSpotifyPlayerInstanceRef={setSpotifyPlayerInstanceRef}
+          setSpotifySDKReady={setSpotifySDKReady}
+          setSpotifyToken={setSpotifyToken}
+          setProgress={setProgress}
+          setDuration={setDuration}
+          setIsPlaying={setIsPlaying}
+        />
+        {children}
+      </WebPlaybackSDK>
     </PlayerContext.Provider>
   );
 }

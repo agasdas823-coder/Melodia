@@ -26,24 +26,43 @@ export function parseLyrics(rawLyrics) {
   return parsed;
 }
 
-export function getActiveLyricIndex(lines, progress) {
+export function getActiveLyricIndex(lines, progress, offsetMs = 0) {
   if (!lines.length) return -1;
 
   const safeProgress = Number.isFinite(progress) ? progress : 0;
-  let activeIndex = 0;
+  const adjustedTime = safeProgress + offsetMs / 1000;
 
+  const timestampedLines = [];
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
-    if (line.time === null) {
-      continue;
+    if (typeof line.time === 'number' && line.time !== null) {
+      timestampedLines.push({ time: line.time, index: i });
     }
-
-    if (safeProgress < line.time) {
-      return Math.max(0, i - 1);
-    }
-
-    activeIndex = i;
   }
 
-  return Math.max(0, activeIndex);
+  if (!timestampedLines.length) {
+    return 0;
+  }
+
+  if (adjustedTime < timestampedLines[0].time) {
+    return 0;
+  }
+
+  let left = 0;
+  let right = timestampedLines.length - 1;
+  let bestMatch = 0;
+
+  while (left <= right) {
+    const mid = (left + right) >> 1;
+    const candidate = timestampedLines[mid];
+
+    if (candidate.time <= adjustedTime) {
+      bestMatch = mid;
+      left = mid + 1;
+    } else {
+      right = mid - 1;
+    }
+  }
+
+  return timestampedLines[bestMatch].index;
 }

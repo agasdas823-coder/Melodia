@@ -11,6 +11,7 @@ export default function MiniLyricsBar() {
     lyricsCache,
     setLyricsCache,
     setLyricsOpen,
+    lyricsSyncOffsetMs,
   } = usePlayer();
 
   const [loading, setLoading] = useState(false);
@@ -19,7 +20,7 @@ export default function MiniLyricsBar() {
   const trackId = currentTrack?.id || currentTrack?._id;
   const cachedLyrics = trackId ? lyricsCache[trackId] : null;
 
-  const { parsedLyrics, activeLyric } = useSyncedLyrics(cachedLyrics, progress);
+  const { parsedLyrics, activeLyric } = useSyncedLyrics(cachedLyrics, progress, lyricsSyncOffsetMs);
 
   const currentLine = activeLyric?.text?.trim();
   const hasLyrics = parsedLyrics.length > 0 && !!currentLine;
