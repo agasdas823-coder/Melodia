@@ -990,11 +990,11 @@ export function PlayerProvider({ children }) {
 
     if (newQueue.length > 0) {
       targetQueue = newQueue;
-      targetIndex = newQueue.findIndex((t) => t.id === track.id || t._id === track.id);
+      targetIndex = newQueue.findIndex((t) => t.id === track.id || t._id === track._id);
       if (targetIndex < 0) targetIndex = 0;
       setQueue(newQueue);
     } else {
-      const idx = queue.findIndex((t) => t.id === track.id || t._id === track.id);
+      const idx = queue.findIndex((t) => t.id === track.id || t._id === track._id);
       if (idx >= 0) {
         targetIndex = idx;
       } else {
