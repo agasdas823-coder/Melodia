@@ -229,7 +229,4 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 - Unsplash — reference imagery
 
 ---
-
-If you'd like, I can also commit additional screenshots, badges, or a short demo GIF to the repo.
-
 Made with ❤️ — Melodia
