@@ -1,223 +1,235 @@
-# 🎵 Melodia - AI-Powered Music Streaming
+<!-- README.md - Melodia -->
+# 🎵 Melodia — AI-Powered Music Streaming
 
-![Deployed Vercel](https://img.shields.io/badge/Deployed-Vercel-000?style=for-the-badge&logo=vercel&logoColor=white)
-![Deployed Railway](https://img.shields.io/badge/Deployed-Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)
-![License MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
-![React 18](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=white)
-![Node.js 18](https://img.shields.io/badge/Node.js-18-339933?style=for-the-badge&logo=node.js&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-Deploy-000?style=for-the-badge&logo=vercel&logoColor=white)
+![Railway](https://img.shields.io/badge/Railway-Deploy-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-18-339933?style=for-the-badge&logo=node.js&logoColor=white)
 
 <p align="center">
-  <img src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&h=400&fit=crop" alt="Melodia Banner" width="800">
+  <a href="https://melodia-wheat.vercel.app"><img src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1200&h=420&fit=crop" alt="Melodia Banner" width="100%"/></a>
 </p>
 
-Melodia is a full-stack, AI-powered music streaming application that seamlessly blends YouTube search with Spotify Premium playback (or synced lyrics streaming). Generate AI playlists, discover new music, and enjoy high-quality streaming — all in one place.
+> Melodia is an AI-powered, full-stack music streaming application that combines YouTube search with Spotify Web Playback SDK to deliver high-fidelity streaming, synchronized lyrics, and intelligent playlist generation.
 
-## ✨ Features
+Live Frontend: https://melodia-wheat.vercel.app
 
-| Feature | Description |
+---
+
+## 🚀 Key Features
+
+| Feature | What it does |
 |---|---|
-| 🎵 **YouTube Search** | Search millions of songs, artists, and playlists using YouTube's API |
-| 🎧 **Spotify Playback** | High-quality streaming with Spotify Web Playback SDK (Premium required) |
-| 🤖 **AI Playlists** | Generate custom playlists using Groq AI based on mood, genre, or activity |
-| 📋 **Playlist Management** | Create, edit, and organize your playlists with custom covers |
-| ❤️ **Liked Songs** | Save your favorite tracks for quick access |
-| 🔍 **Smart Search** | Filter results by songs, artists, albums, or playlists |
-| 📱 **Responsive Design** | Beautiful glassmorphic UI that works on all devices |
-| 🔐 **Secure Auth** | JWT-based authentication with MongoDB |
-| 📝 **Synced Lyrics** | Mini lyrics bar and modal for live lyrics tracking |
+| 🎵 YouTube Search | Search songs, artists, and playlists via YouTube search integration |
+| 🎧 Spotify Playback | Play full tracks via Spotify Web Playback SDK (Spotify Premium required) |
+| 🤖 AI Playlist Generation | Use Groq API to generate playlists from prompts and moods |
+| 📋 Playlist Management | Create, edit, delete playlists with custom covers |
+| ❤️ Liked Songs | Save and access your favorite tracks quickly |
+| 🔐 Authentication | JWT-based auth with MongoDB user store |
+| 📝 Synced Lyrics | LRC-style timed lyrics with karaoke modal and mini-bar |
+| 📱 Responsive UI | Glassmorphic, modern UI built with TailwindCSS and Framer Motion |
 
-## 🛠️ Tech Stack
+---
 
-### Frontend
-![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
-![Tailwind](https://img.shields.io/badge/Tailwind-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
-![Howler.js](https://img.shields.io/badge/Howler.js-FF69B4?style=flat)
+## 🧰 Tech Stack
 
-### Backend
-![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat&logo=node.js&logoColor=white)
-![Express](https://img.shields.io/badge/Express-000000?style=flat&logo=express&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat&logo=mongodb&logoColor=white)
-![JWT](https://img.shields.io/badge/JWT-000000?style=flat&logo=jsonwebtokens&logoColor=white)
+- Frontend: React 18, Vite, TailwindCSS, Framer Motion, Howler.js
+- Backend: Node.js, Express, MongoDB, JWT
+- APIs: YouTube Data API, Spotify Web Playback SDK, Groq API
 
-### APIs & Services
-![YouTube API](https://img.shields.io/badge/YouTube_API-FF0000?style=flat&logo=youtube&logoColor=white)
-![Spotify SDK](https://img.shields.io/badge/Spotify_SDK-1ED760?style=flat&logo=spotify&logoColor=white)
-![Groq AI](https://img.shields.io/badge/Groq_AI-00C244?style=flat)
+Badges:
 
-## 🚀 Live Demo
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-06B6D4?style=flat&logo=tailwind-css)
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat&logo=node.js)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat&logo=mongodb)
 
-| Environment | URL |
-|---|---|
-| **Frontend** | [https://melodia-wheat.vercel.app](https://melodia-wheat.vercel.app) |
-| **Backend API** | [https://melody-production-ela0.up.railway.app](https://melody-production-ela0.up.railway.app) |
-| **API Health** | [https://melody-production-ela0.up.railway.app/health](https://melody-production-ela0.up.railway.app/health) |
+---
 
-## 📸 Screenshots
+## 🔗 Live Demo
 
-<table> 
-  <tr> 
-    <td><img src="https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=400&h=250&fit=crop" alt="Library"/></td> 
-    <td><img src="https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=400&h=250&fit=crop" alt="Player"/></td> 
-  </tr> 
-  <tr> 
-    <td align="center"><b>My Library</b></td> 
-    <td align="center"><b>Now Playing</b></td> 
-  </tr> 
-  <tr> 
-    <td><img src="https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=250&fit=crop" alt="Search"/></td> 
-    <td><img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&h=250&fit=crop" alt="Playlist"/></td> 
-  </tr> 
-  <tr> 
-    <td align="center"><b>Search</b></td> 
-    <td align="center"><b>AI Playlist</b></td> 
-  </tr> 
-</table>
+- Frontend: https://melodia-wheat.vercel.app
+- Backend API: https://melody-production-ela0.up.railway.app
 
-## 📦 Installation
+---
+
+## 📸 Reference Screenshots
+
+Use these images as presentation references:
+
+| Library | Now Playing |
+|---:|:---|
+| <img src="https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=400&h=250&fit=crop" alt="Library" width="320"/> | <img src="https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=400&h=250&fit=crop" alt="Player" width="320"/> |
+
+---
+
+## ✅ Installation
 
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
-- MongoDB Atlas account (free tier)
-- Spotify Premium account
-- YouTube API Key
-- Groq API Key
 
-### Clone the Repository
+- Node.js 18+ and npm/yarn
+- MongoDB (Atlas or local)
+- Spotify Premium account (for full-track playback)
+- YouTube Data API key
+- Groq API key (if using AI playlist generation)
+
+### Clone
+
 ```bash
 git clone https://github.com/agasdas823-coder/Melodia.git
 cd Melodia
 ```
 
 ### Backend Setup
+
 ```bash
 cd server
 npm install
-# Edit .env with your keys (see Environment Variables section below)
+# create server/.env using the template below
 npm run dev
 ```
 
 ### Frontend Setup
-Open a new terminal in the project root:
+
+Open a new terminal and run:
+
 ```bash
 npm install
-# Edit .env with your API URL
+# create .env (Vite) using the template below
 npm run dev
 ```
 
+---
+
 ## 🔐 Environment Variables
 
-### Backend (`server/.env`)
+Add these to `server/.env` (backend):
+
 ```env
 # Server
 PORT=8080
-NODE_ENV=production
-CORS_ORIGINS=https://melodia-wheat.vercel.app,http://localhost:5173,http://localhost:5174
+NODE_ENV=development
+
+# CORS origins (comma separated)
+CORS_ORIGINS=https://melodia-wheat.vercel.app,http://localhost:5173
 
 # Database
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/melodia
+MONGODB_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/melodia
 
-# JWT
-JWT_SECRET=your_jwt_secret_key
+# Auth
+JWT_SECRET=your_jwt_secret
 
-# YouTube API (for search)
+# YouTube
 YOUTUBE_API_KEY=your_youtube_api_key
 
-# Spotify (for playback)
+# Spotify (for auth + refresh token flow)
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
 SPOTIFY_REFRESH_TOKEN=your_spotify_refresh_token
 
-# AI (for playlist generation)
+# Groq (AI)
 GROQ_API_KEY=your_groq_api_key
 ```
 
-### Frontend (`.env`)
+Add these to frontend `.env` (root):
+
 ```env
-VITE_API_URL=http://localhost:8080
+VITE_API_URL=https://melody-production-ela0.up.railway.app
+VITE_SPOTIFY_REDIRECT_URI=https://melodia-wheat.vercel.app
 ```
 
-## 🎯 API Endpoints
+---
+
+## 🧾 API Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/search?q=...&type=...` | Search YouTube (songs, playlists, albums) |
-| `GET` | `/api/stream/:videoId` | Get audio stream URL |
-| `GET` | `/api/playlist/:id` | Get playlist with songs |
-| `POST` | `/api/ai/generate` | Generate AI playlist |
-| `POST` | `/api/auth/register` | User registration |
-| `POST` | `/api/auth/login` | User login |
-| `GET` | `/api/spotify/token` | Get Spotify access token |
-| `GET` | `/api/lyrics/sync` | Fetches synchronized lyrics for a given track |
+| GET | `/api/search?q=...&limit=...&type=...` | Search (YouTube primary) |
+| GET | `/api/track/:id` | Get normalized track metadata |
+| GET | `/api/stream/:videoId` | Stream audio for a YouTube video |
+| GET | `/api/playlist/:id` | Get playlist (normalized) |
+| POST | `/api/ai/generate` | Generate playlist using Groq (AI) |
+| POST | `/api/auth/register` | Register user (returns JWT) |
+| POST | `/api/auth/login` | Login user (returns JWT) |
+| GET | `/api/spotify/search?q=...` | Spotify search proxy |
+| GET | `/api/lyrics?title=...&artist=...` | Fetch lyrics (if available) |
 
-## 📁 Project Structure
+> Note: Some endpoints require authentication. Use `Authorization: Bearer <token>` header.
 
-```text
+---
+
+## 🗂 Project Structure
+
+```
 Melodia/
-├── src/                  # Frontend Source Code
-│   ├── pages/            # Page components
-│   ├── components/       # Reusable components
-│   ├── context/          # React Context providers
-│   ├── hooks/            # Custom React hooks
-│   ├── services/         # API services
-│   ├── utils/            # Utilities & helpers
-│   ├── App.jsx
+├── src/                    # Frontend (React + Vite)
+│   ├── pages/              # Page components
+│   ├── components/         # UI components
+│   ├── context/            # Player/Auth contexts
+│   ├── hooks/              # Reusable hooks
+│   ├── services/           # API clients (musicService, playlistService)
 │   └── main.jsx
-├── server/               # Backend Source Code
-│   ├── controllers/      # Route controllers
-│   ├── routes/           # API routes
-│   ├── models/           # Database models
-│   ├── services/         # External services
-│   ├── data/             # Local database JSON (if fallback used)
-│   ├── app.js
-│   ├── server.js
-│   └── package.json
+├── server/                 # Backend (Express)
+│   ├── controllers/        # Route handlers
+│   ├── routes/             # Express routes
+│   ├── services/           # YouTube/Spotify helpers
+│   ├── models/             # Mongoose models
+│   └── server.js
 ├── public/
 ├── package.json
 └── README.md
 ```
 
-## 🚀 Deployment
+---
 
-### Deploy Backend (Railway)
-1. Push to GitHub
-2. Connect repository to Railway
-3. Add environment variables
-4. Deploy automatically
+## 📦 Deployment
 
-### Deploy Frontend (Vercel)
-1. Push to GitHub
-2. Connect repository to Vercel
-3. Add `VITE_API_URL` environment variable
-4. Deploy automatically
+### Frontend (Vercel)
+
+1. Push the repository to GitHub.
+2. Create a Vercel project and connect your repo.
+3. Set `VITE_API_URL` in Vercel Environment Variables.
+4. Deploy and visit `https://melodia-wheat.vercel.app`.
+
+### Backend (Railway / Heroku / other)
+
+1. Push to GitHub and connect to Railway.
+2. Add all `server/.env` variables in Railway settings.
+3. Set the start command to `node server/server.js` or use the provided `package.json` scripts.
+4. Deploy and verify the health endpoint.
+
+---
 
 ## 🤝 Contributing
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing`)
-5. Open a Pull Request
 
-## 📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+We welcome contributions! Please follow these steps:
+
+1. Fork the repo and create a branch: `git checkout -b feature/your-feature`
+2. Make changes and add tests where appropriate.
+3. Commit with clear messages: `git commit -m "feat: add ..."`
+4. Push and open a Pull Request.
+
+Please abide by the code of conduct and write clear PR descriptions.
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+---
 
 ## 🙏 Acknowledgments
-- YouTube Data API for search
-- Spotify Web Playback SDK for playback
-- Groq for AI playlist generation
-- Unsplash for cover images
 
-## 📞 Support
-| Issue | Where to report |
-|---|---|
-| Bug reports | GitHub Issues |
-| Feature requests | GitHub Discussions |
-| General questions | Email |
+- YouTube Data API — for search and video metadata
+- Spotify Web Playback SDK — for playback integration
+- Groq — for AI playlist generation
+- Unsplash — reference imagery
 
-<p align="center">
-  Made with ❤️ by <a href="https://github.com/agasdas823-coder">agasdas823-coder</a>
-</p>
-<p align="center">
-  ⭐ Star this repo if you like it!
-</p>
+---
+
+If you'd like, I can also commit additional screenshots, badges, or a short demo GIF to the repo.
+
+Made with ❤️ — Melodia
