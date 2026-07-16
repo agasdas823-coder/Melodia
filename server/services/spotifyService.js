@@ -1,10 +1,43 @@
 import axios from 'axios';
+import NodeCache from 'node-cache';
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+const SPOTIFY_MARKET = process.env.SPOTIFY_MARKET || 'US';
 
 let accessToken = null;
 let tokenExpiresAt = 0;
+let spotifyRateLimitedUntil = 0;
+
+const spotifySearchCache = new NodeCache({ stdTTL: 60 * 30, checkperiod: 120, useClones: false });
+
+function getCachedSearch(cacheKey) {
+  return cacheKey ? spotifySearchCache.get(cacheKey) || null : null;
+}
+
+function setCachedSearch(cacheKey, tracks) {
+  if (!cacheKey || !Array.isArray(tracks)) return;
+  spotifySearchCache.set(cacheKey, tracks);
+}
+
+function createSpotifyError(status, message, retryAfterSeconds = null) {
+  const error = new Error(message || 'Spotify service error');
+  error.response = {
+    status,
+    data: {
+      error: {
+        code: status === 429 ? 'SPOTIFY_RATE_LIMITED' : 'SPOTIFY_ERROR',
+        message,
+        retry_after: retryAfterSeconds,
+      },
+    },
+  };
+  return error;
+}
+
+function getCacheKey(query, limit) {
+  return `${String(query || '').trim().toLowerCase()}:${normalizeSpotifySearchLimit(limit)}`;
+}
 
 function formatTrack(track) {
   return {
@@ -44,6 +77,10 @@ function formatDuration(ms) {
   return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function getAccessToken() {
   if (accessToken && Date.now() < tokenExpiresAt) {
     return accessToken;
@@ -81,20 +118,62 @@ function normalizeSpotifySearchLimit(limit, defaultLimit = 20, maxLimit = 50) {
 export async function searchTracks(query, limit = 20) {
   if (!query) return [];
   const safeLimit = normalizeSpotifySearchLimit(limit);
-  const token = await getAccessToken();
-  const response = await axios.get('https://api.spotify.com/v1/search', {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    params: {
-      q: query,
-      type: 'track',
-      limit: safeLimit,
-    },
-  });
+  const cacheKey = getCacheKey(query, safeLimit);
+  const cached = getCachedSearch(cacheKey);
+  if (cached) {
+    return cached;
+  }
 
-  const items = response.data?.tracks?.items || [];
-  return items.map(formatTrack);
+  if (Date.now() < spotifyRateLimitedUntil) {
+    throw createSpotifyError(429, 'Spotify search rate limit active', Math.ceil((spotifyRateLimitedUntil - Date.now()) / 1000));
+  }
+
+  let token = await getAccessToken();
+  let attempt = 0;
+  const maxAttempts = 2;
+
+  while (attempt < maxAttempts) {
+    try {
+      const response = await axios.get('https://api.spotify.com/v1/search', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        params: {
+          q: query,
+          type: 'track',
+          market: SPOTIFY_MARKET,
+          limit: safeLimit,
+        },
+      });
+
+      const items = response.data?.tracks?.items || [];
+      const results = items.map(formatTrack);
+      setCachedSearch(cacheKey, results);
+      return results;
+    } catch (error) {
+      const status = error?.response?.status;
+
+      if (status === 401 && attempt === 0) {
+        accessToken = null;
+        token = await getAccessToken();
+        attempt += 1;
+        continue;
+      }
+
+      if (status === 429) {
+        const retryAfterHeader = error.response.headers?.['retry-after'];
+        const retryAfterSeconds = Number(retryAfterHeader) || 10;
+        const retryAfterMs = Math.min(Math.max(retryAfterSeconds * 1000, 1000), 60 * 1000);
+        spotifyRateLimitedUntil = Date.now() + retryAfterMs;
+        console.warn('[spotifyService] rate limited: blocking searches until', new Date(spotifyRateLimitedUntil).toISOString());
+        throw createSpotifyError(429, 'Spotify search rate limited', retryAfterSeconds);
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error('Spotify search failed after retry');
 }
 
 export async function getTrack(id) {

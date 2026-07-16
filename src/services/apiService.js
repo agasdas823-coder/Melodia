@@ -3,7 +3,7 @@ import { API_URL } from '../utils/config';
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 20000,
+  timeout: 10000,
 });
 
 api.interceptors.response.use(
@@ -28,9 +28,12 @@ export const musicService = {
   resolve: (title, artist) => api.get('/api/resolve', { params: { title, artist } }),
   // Spotify-specific helper endpoints
   spotifySearch: (q, params = {}) => api.get('/api/spotify/search', { params: { q, ...params } }),
+  spotifyBatchSearch: (queries = [], limit = 1) => api.post('/api/spotify/batch-search', { queries, limit }),
   spotifyGetTrack: (id) => api.get(`/api/spotify/track/${id}`),
   spotifyAuthorize: () => api.get('/api/spotify/auth'),
   spotifyRefresh: (refreshToken) => api.post('/api/spotify/refresh', { refresh_token: refreshToken }),
+  itunesSearch: (q, params = {}) => api.get('/api/spotify/itunes/search', { params: { q, ...params } }),
+  itunesGetTrack: (id) => api.get(`/api/spotify/itunes/track/${id}`),
 };
 
 export const playlistService = {

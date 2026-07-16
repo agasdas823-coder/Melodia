@@ -4,6 +4,10 @@ import { lyricsService } from '../../services/apiService';
 import { useSyncedLyrics } from '../../hooks/useSyncedLyrics';
 import { getTrackTitle, getTrackArtist } from '../../utils/trackMetadata';
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export default function LyricsModal() {
   const { currentTrack, lyricsOpen, setLyricsOpen, isPlaying, usingFallback, lyricsCache, progress, seek, lyricsSyncOffsetMs } = usePlayer();
 
@@ -39,17 +43,37 @@ export default function LyricsModal() {
     const title = getTrackTitle(currentTrack);
     const artist = getTrackArtist(currentTrack);
 
+    async function fetchLyrics(title, artist, retries = 1, backoff = 500) {
+      try {
+        const response = await lyricsService.getLyrics(title, artist);
+        const data = response.data;
+        if (data.success && data.lyrics) {
+          return data.lyrics.trim();
+        }
+        return null;
+      } catch (fetchError) {
+        const status = fetchError?.response?.status;
+        const isTransient = !status || status >= 500 || status === 429 || fetchError.code === 'ECONNABORTED';
+        if (retries > 0 && isTransient) {
+          await delay(backoff);
+          return fetchLyrics(title, artist, retries - 1, backoff * 2);
+        }
+        return null;
+      }
+    }
+
     try {
-      const response = await lyricsService.getLyrics(title, artist);
-      const data = response.data;
-      if (data.success && data.lyrics) {
-        setLyrics(data.lyrics.trim());
+      const lyricsText = await fetchLyrics(title, artist);
+      if (lyricsText) {
+        setLyrics(lyricsText);
       } else {
         setError('no_lyrics');
+        setLyricsCache((prev) => ({ ...prev, [id]: 'NOT_FOUND' }));
       }
     } catch (fetchError) {
       console.error('Error fetching lyrics:', fetchError);
-      setError('fetch_error');
+      setError('no_lyrics');
+      setLyricsCache((prev) => ({ ...prev, [id]: 'NOT_FOUND' }));
     } finally {
       setLoading(false);
     }

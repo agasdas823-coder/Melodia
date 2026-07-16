@@ -43,16 +43,50 @@ function normalizeTrack(track) {
     duration_string: track.duration_string || formatDuration(track.duration ?? 0),
     previewUrl: track.previewUrl || null,
     audioUrl: track.audioUrl || null,
+    spotifyUri: track.spotifyUri || null,
+    spotifyUrl: track.spotifyUrl || null,
     url: track.url || `https://www.youtube.com/watch?v=${videoId}`,
     type: track.type || 'song',
     source: track.source || 'youtube',
   };
 }
 
+function normalizeMatchKey(value) {
+  return String(value || '')
+    .replace(/[\W_]+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function buildTrackMatchKey(track) {
+  const title = normalizeMatchKey(track.title || track.name || '');
+  const artist = normalizeMatchKey(track.artist || track.artists?.[0]?.name || '');
+  return `${title}|${artist}`;
+}
+
+function normalizeSearchValue(value) {
+  if (!value) return '';
+  return String(value)
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\s*[-–—]\s*(official|audio|video|lyric|lyrics)(.*)$/gi, '')
+    .replace(/\b(official|audio|video|lyric|lyrics)\b/gi, '')
+    .replace(/[.,/#!$%^&*;:{}=+_`~?"'\[\]]/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function cleanTrackArtist(value) {
+  return normalizeSearchValue(String(value || '')
+    .replace(/\s*[-–—]\s*(topic|vevo|official|audio|video|lyric|lyrics)$/gi, '')
+    .replace(/\b(topic|vevo)\b/gi, '')
+    .trim());
+}
+
 function normalizePlaylist(playlist) {
   if (!playlist) return null;
 
-  const thumbnail = playlist.thumbnail || playlist.coverArtUrl || '';
+  const thumbnail = playlist.thumbnail || playlist.coverImageUrl || playlist.thumbnail_medium || '';
 
   return {
     id: playlist.id || playlist._id || '',

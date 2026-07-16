@@ -1,7 +1,17 @@
 import express from 'express';
 import axios from 'axios';
+import NodeCache from 'node-cache';
 import { getTrack, searchTracks, isConfigured } from '../services/spotifyService.js';
 import * as itunes from '../spotify.js';
+
+const spotifyRouteCache = new NodeCache({ stdTTL: 60 * 60, checkperiod: 120, useClones: false });
+const normalizeSpotifyRouteCacheKey = (q) =>
+  String(q || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[.,/#!$%^&*;:{}=+_`~?"'\[\]]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 const router = express.Router();
 
@@ -57,6 +67,8 @@ function parseSpotifyLimit(limit) {
   return Math.min(parsed, 50);
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 router.get('/search', async (req, res) => {
   try {
     const { q, limit = 20 } = req.query;
@@ -67,8 +79,33 @@ router.get('/search', async (req, res) => {
       return res.status(503).json({ success: false, error: 'Spotify is not configured on this server' });
     }
 
+    // Temporary diagnostics: log headers and request origin to detect rogue/internal callers
+    try {
+      console.log('[Spotify Route] /api/spotify/search hit at', new Date().toISOString());
+      console.log('[Spotify Route] remoteAddress:', req.ip || req.socket?.remoteAddress, 'origin header:', req.headers.origin || 'none');
+      console.log('[Spotify Route] User-Agent:', req.headers['user-agent'] || 'none');
+      console.log('[Spotify Route] All headers:', JSON.stringify(req.headers));
+      console.log('[Spotify Route] Call stack (for diagnostics):');
+      console.log(new Error('stack-trace').stack);
+    } catch (diagErr) {
+      console.warn('[Spotify Route] diagnostics logging failed:', diagErr && diagErr.message);
+    }
+
+    const cacheKey = normalizeSpotifyRouteCacheKey(q);
+    const cached = spotifyRouteCache.get(cacheKey);
+    if (cached) {
+      return res.json({
+        success: true,
+        source: 'spotify',
+        count: cached.length,
+        songs: cached,
+        cached: true,
+      });
+    }
+
     const safeLimit = parseSpotifyLimit(limit);
     const tracks = await searchTracks(q, safeLimit);
+    spotifyRouteCache.set(cacheKey, tracks);
     return res.json({
       success: true,
       source: 'spotify',
@@ -78,6 +115,70 @@ router.get('/search', async (req, res) => {
     });
   } catch (error) {
     console.error('Spotify search error:', error.response?.data || error.message);
+    const spotifyError = error.response?.data;
+    const message = spotifyError?.error?.message || spotifyError?.message || error.message || 'Internal Server Error';
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: {
+        message,
+        details: spotifyError,
+      },
+    });
+  }
+});
+
+router.post('/batch-search', async (req, res) => {
+  try {
+    const queries = Array.isArray(req.body?.queries) ? req.body.queries : [];
+    const defaultLimit = parseSpotifyLimit(req.body?.limit || 1);
+
+    if (!queries.length) {
+      return res.status(400).json({ success: false, error: 'queries array is required' });
+    }
+    if (!isConfigured()) {
+      return res.status(503).json({ success: false, error: 'Spotify is not configured on this server' });
+    }
+
+    const results = [];
+    let rateLimited = false;
+
+    for (const queryItem of queries.slice(0, 5)) {
+      const q = String(queryItem?.q || '').trim();
+      const limit = parseSpotifyLimit(queryItem?.limit ?? defaultLimit);
+      if (!q) {
+        results.push({ q, songs: [], cached: false });
+        continue;
+      }
+
+      const cacheKey = normalizeSpotifyRouteCacheKey(`${q}:${limit}`);
+      const cached = spotifyRouteCache.get(cacheKey);
+      if (cached) {
+        results.push({ q, songs: cached, cached: true });
+        continue;
+      }
+
+      try {
+        if (results.length > 0) {
+          await sleep(200);
+        }
+
+        const tracks = await searchTracks(q, limit);
+        spotifyRouteCache.set(cacheKey, tracks);
+        results.push({ q, songs: tracks, cached: false });
+      } catch (searchError) {
+        const status = searchError?.response?.status;
+        if (status === 429) {
+          rateLimited = true;
+          results.push({ q, songs: [], cached: false, rateLimited: true });
+          break;
+        }
+        throw searchError;
+      }
+    }
+
+    return res.json({ success: true, rateLimited, results });
+  } catch (error) {
+    console.error('Spotify batch search error:', error.response?.data || error.message);
     const spotifyError = error.response?.data;
     const message = spotifyError?.error?.message || spotifyError?.message || error.message || 'Internal Server Error';
     res.status(error.response?.status || 500).json({
@@ -118,6 +219,17 @@ router.get('/itunes/search', async (req, res) => {
   try {
     const { q, limit = 10 } = req.query;
     if (!q) return res.status(400).json({ success: false, error: 'q required' });
+    // Temporary diagnostics: log headers and request origin to detect rogue/internal callers
+    try {
+      console.log('[iTunes Route] /api/spotify/itunes/search hit at', new Date().toISOString());
+      console.log('[iTunes Route] remoteAddress:', req.ip || req.socket?.remoteAddress, 'origin header:', req.headers.origin || 'none');
+      console.log('[iTunes Route] User-Agent:', req.headers['user-agent'] || 'none');
+      console.log('[iTunes Route] All headers:', JSON.stringify(req.headers));
+      console.log('[iTunes Route] Call stack (for diagnostics):');
+      console.log(new Error('stack-trace').stack);
+    } catch (diagErr) {
+      console.warn('[iTunes Route] diagnostics logging failed:', diagErr && diagErr.message);
+    }
     const results = await itunes.searchTracks(q, Number(limit) || 10);
     return res.json({ success: true, count: results.length, songs: results });
   } catch (err) {

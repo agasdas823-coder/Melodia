@@ -232,15 +232,30 @@ router.get('/songs/:id', async (req, res) => {
 
 // ── GET /api/lyrics - Get lyrics by title and artist ──
 router.get('/lyrics', async (req, res) => {
+  const title = String(req.query?.title || '').trim();
+  const artist = String(req.query?.artist || '').trim();
+  console.log('🎵 [Lyrics route] /api/lyrics request:', { title, artist });
+
+  if (!title) {
+    return res.status(400).json({
+      found: false,
+      success: false,
+      title: null,
+      artist: artist || null,
+      error: 'title is required',
+    });
+  }
+
   try {
     await getLrclibLyrics(req, res);
   } catch (error) {
-    console.error('❌ Lyrics route error:', error);
-    return res.status(404).json({
+    console.error('❌ Lyrics route error:', error.message || error);
+    return res.status(500).json({
       found: false,
       success: false,
-      title: req.query?.title ?? null,
-      artist: req.query?.artist ?? null,
+      title,
+      artist,
+      error: 'lyrics service error',
     });
   }
 });

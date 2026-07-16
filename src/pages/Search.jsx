@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlayer } from "../context/PlayerContext";
+import { musicService } from "../services/apiService";
 import { Search as SearchIcon, X, Play, Pause, Music, Heart, Plus } from "lucide-react";
 import AddToPlaylistDropdown from "../components/playlist/AddToPlaylistDropdown";
 import { API_URL } from "../utils/config";
@@ -26,6 +27,8 @@ export default function Search() {
   const [filterType, setFilterType] = useState("all");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [spotifyLookupActive, setSpotifyLookupActive] = useState(false);
+  const [spotifyLookupMessage, setSpotifyLookupMessage] = useState('');
   const [error, setError] = useState(null);
   const [recentSearches, setRecentSearches] = useState(() => {
     try {
@@ -35,7 +38,165 @@ export default function Search() {
       return [];
     }
   });
+  const spotifyQueryCacheRef = useRef(new Map());
+  const spotifyRateLimitUntilRef = useRef(0);
+  const inFlightPromisesRef = useRef(new Map());
   const inputRef = useRef(null);
+  const SPOTIFY_RETRY_CAP = 2;
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const normalizeSpotifyQueryValue = (value) => {
+    return String(value || '')
+      .replace(/\s*-\s*Topic$/i, '')
+      .replace(/\s*\([^)]*\)/g, '')
+      .replace(/\s*[-–—]\s*(official|audio|video|lyric|lyrics|lyrics?)$/gi, '')
+      .replace(/\b(official|audio|video|lyric|lyrics?|topic|vevo)\b/gi, '')
+      .replace(/[.,/#!$%^&*;:{}=+_`~?"'\[\]]/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  };
+
+  const normalizeSpotifyQueryKey = (title, artist) => {
+    return `${normalizeSpotifyQueryValue(title).toLowerCase()}||${normalizeSpotifyQueryValue(artist).toLowerCase()}`;
+  };
+
+  const getSpotifyQueryString = (track) => {
+    const title = normalizeSpotifyQueryValue(track.title || track.name);
+    const artist = normalizeSpotifyQueryValue(track.artist || track.artists?.[0]?.name);
+    if (!title || !artist) return null;
+    return `${title} ${artist}`.trim();
+  };
+
+  const fetchSpotifyUrisForTracks = async (tracks) => {
+    const queryItems = [];
+    const queryToCacheKey = new Map();
+    const cacheMap = new Map();
+
+    if (Date.now() < spotifyRateLimitUntilRef.current) {
+      setSpotifyLookupMessage('Spotify rate limited, using iTunes fallback.');
+      return cacheMap;
+    }
+
+    for (const track of tracks) {
+      if (!track || track.spotifyUri || track.source !== 'youtube') continue;
+      const query = getSpotifyQueryString(track);
+      if (!query) continue;
+      const key = normalizeSpotifyQueryKey(track.title || track.name, track.artist || track.artists?.[0]?.name);
+      if (spotifyQueryCacheRef.current.has(key)) {
+        cacheMap.set(key, spotifyQueryCacheRef.current.get(key));
+        continue;
+      }
+      if (queryItems.some((item) => item.q === query)) continue;
+      queryItems.push({ q: query, limit: 1 });
+      queryToCacheKey.set(query, key);
+    }
+
+    if (queryItems.length === 0) {
+      return cacheMap;
+    }
+
+    setSpotifyLookupActive(true);
+    setSpotifyLookupMessage('Loading Spotify results...');
+
+    try {
+      const response = await musicService.spotifyBatchSearch(queryItems, 1);
+      const rateLimited = response?.data?.rateLimited;
+      const results = response?.data?.results || [];
+      for (const result of results) {
+        const query = String(result.q || '').trim();
+        if (!query) continue;
+        const firstSong = result?.songs?.[0];
+        const spotifyUri = firstSong?.spotifyUri || firstSong?.uri || (firstSong?.id ? `spotify:track:${firstSong.id}` : null);
+        const cacheKey = queryToCacheKey.get(query);
+        if (!cacheKey) continue;
+
+        spotifyQueryCacheRef.current.set(cacheKey, spotifyUri || null);
+        cacheMap.set(cacheKey, spotifyUri || null);
+      }
+
+      if (rateLimited) {
+        setSpotifyLookupMessage('Spotify rate limited, using iTunes fallback.');
+      }
+    } catch (error) {
+      const status = error?.response?.status;
+      if (status === 429) {
+        const retryAfterSeconds = Number(error?.response?.data?.error?.retry_after || error?.response?.headers?.['retry-after'] || 0);
+        const delayMs = Math.max(retryAfterSeconds * 1000, 5000);
+        spotifyRateLimitUntilRef.current = Date.now() + delayMs;
+        setSpotifyLookupMessage('Spotify rate limited, using iTunes fallback.');
+      } else {
+        console.warn('[Search] Spotify batch lookup failed', error);
+      }
+    } finally {
+      if (Date.now() >= spotifyRateLimitUntilRef.current) {
+        setSpotifyLookupMessage('');
+      }
+      setSpotifyLookupActive(false);
+    }
+
+    return cacheMap;
+  };
+
+  const ensureSpotifyUriForTrack = async (track) => {
+    if (!track || track.spotifyUri || track.source !== 'youtube') return track;
+    const cachedKey = normalizeSpotifyQueryKey(track.title || track.name, track.artist || track.artists?.[0]?.name);
+    if (spotifyQueryCacheRef.current.has(cachedKey)) {
+      const spotifyUri = spotifyQueryCacheRef.current.get(cachedKey);
+      if (spotifyUri) {
+        const spotifyUrl = track.spotifyUrl || spotifyUri.replace('spotify:track:', 'https://open.spotify.com/track/');
+        const updatedTrack = { ...track, spotifyUri, spotifyUrl };
+        setResults((prev) => prev.map((r) => (r.id === track.id || r._id === track._id ? updatedTrack : r)));
+        return updatedTrack;
+      }
+      return track;
+    }
+
+    const cacheMap = await fetchSpotifyUrisForTracks([track]);
+    const spotifyUri = cacheMap.get(cachedKey) || null;
+    if (!spotifyUri) {
+      return track;
+    }
+
+    const spotifyUrl = track.spotifyUrl || spotifyUri.replace('spotify:track:', 'https://open.spotify.com/track/');
+    const updatedTrack = { ...track, spotifyUri, spotifyUrl };
+    setResults((prev) => prev.map((r) => (r.id === track.id || r._id === track._id ? updatedTrack : r)));
+    return updatedTrack;
+  };
+
+  const batchResolveSpotifyUris = async (queue) => {
+    if (!Array.isArray(queue) || queue.length === 0) return;
+    const toResolve = [];
+    const seenKeys = new Set();
+
+    for (const item of queue) {
+      if (!item || item.spotifyUri || item.source !== 'youtube') continue;
+      const key = normalizeSpotifyQueryKey(item.title || item.name, item.artist || item.artists?.[0]?.name);
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      toResolve.push(item);
+    }
+
+    if (toResolve.length === 0) return;
+
+    const cacheMap = await fetchSpotifyUrisForTracks(toResolve);
+    const updates = [];
+
+    for (const item of toResolve) {
+      const key = normalizeSpotifyQueryKey(item.title || item.name, item.artist || item.artists?.[0]?.name);
+      const spotifyUri = cacheMap.get(key);
+      if (!spotifyUri) continue;
+      const spotifyUrl = item.spotifyUrl || spotifyUri.replace('spotify:track:', 'https://open.spotify.com/track/');
+      updates.push({ id: item.id, _id: item._id, spotifyUri, spotifyUrl });
+    }
+
+    if (updates.length > 0) {
+      setResults((prev) => prev.map((r) => {
+        const update = updates.find((u) => u.id === r.id || u._id === r._id);
+        return update ? { ...r, spotifyUri: update.spotifyUri, spotifyUrl: update.spotifyUrl } : r;
+      }));
+    }
+  };
 
   const runSearch = async (query, typeOverride) => {
     const trimmed = query.trim();
@@ -46,48 +207,59 @@ export default function Search() {
     setLoading(true);
     setError(null);
     setResults([]);
+    setSpotifyLookupActive(true);
+    setSpotifyLookupMessage('Searching Spotify...');
+
+    const normalizeResponse = (songs, sourceHint) => {
+      return (songs || []).map((item) => ({
+        ...item,
+        source: item.source || sourceHint,
+        type: item.type || 'song',
+        title: item.title || item.name || 'Untitled',
+        name: item.name || item.title || 'Untitled',
+        artist: item.artist || item.channel || 'Unknown Artist',
+        thumbnail: item.thumbnail || item.coverArtUrl || item.thumbnail_medium || '',
+        coverArtUrl: item.coverArtUrl || item.thumbnail || item.thumbnail_medium || '',
+      }));
+    };
 
     try {
-      const isSpotifySearch = ['all', 'song', 'artist'].includes(typeToUse);
-      const endpoint = isSpotifySearch ? '/api/spotify/search' : '/api/search';
+      let normalizedSongs = [];
+      let spotifySearchUsed = false;
 
-      const fetchResults = async (url, sourceHint) => {
-        const response = await fetch(url);
+      try {
+        const spotifyRes = await musicService.spotifySearch(trimmed, { limit: 20, type: typeToUse });
+        const spotifyData = spotifyRes?.data;
+        if (spotifyData?.success) {
+          normalizedSongs = normalizeResponse(spotifyData.songs || [], 'spotify');
+          spotifySearchUsed = normalizedSongs.length > 0;
+        }
+      } catch (spotifyError) {
+        const status = spotifyError?.response?.status;
+        const retryAfter = Number(spotifyError?.response?.data?.error?.retry_after || spotifyError?.response?.headers?.['retry-after'] || 0);
+        if (status === 429 || retryAfter > 0) {
+          const delayMs = Math.max(retryAfter * 1000, 5000);
+          spotifyRateLimitUntilRef.current = Date.now() + delayMs;
+          setSpotifyLookupMessage('Spotify rate limited, falling back to YouTube.');
+        } else {
+          console.warn('[Search] Spotify search failed, falling back to YouTube', spotifyError);
+          setSpotifyLookupMessage('Spotify unavailable, falling back to YouTube.');
+        }
+      }
+
+      if (!spotifySearchUsed) {
+        const youtubeUrl = `${API_URL}/api/search?q=${encodeURIComponent(trimmed)}&limit=20&type=${typeToUse}`;
+        const response = await fetch(youtubeUrl);
         if (!response.ok) throw new Error(`Server error: ${response.status}`);
         const data = await response.json();
         if (data.success === false) {
           throw new Error(data.error?.message || 'Search endpoint returned failure');
         }
-        return (data.songs || []).map((item) => ({
-          ...item,
-          source: item.source || sourceHint,
-          type: item.type || 'song',
-          title: item.title || item.name || 'Untitled',
-          name: item.name || item.title || 'Untitled',
-          artist: item.artist || item.channel || 'Unknown Artist',
-          thumbnail: item.thumbnail || item.coverArtUrl || item.thumbnail_medium || '',
-          coverArtUrl: item.coverArtUrl || item.thumbnail || item.thumbnail_medium || '',
-        }));
-      };
-
-      const spotifyUrl = `${API_URL}/api/spotify/search?q=${encodeURIComponent(trimmed)}&limit=20&type=${typeToUse}`;
-      const youtubeUrl = `${API_URL}/api/search?q=${encodeURIComponent(trimmed)}&limit=20&type=${typeToUse}`;
-
-      let normalizedSongs;
-      if (isSpotifySearch) {
-        try {
-          normalizedSongs = await fetchResults(spotifyUrl, 'spotify');
-        } catch (spotifyError) {
-          console.warn('[Search] Spotify search failed, falling back to YouTube:', spotifyError);
-          normalizedSongs = await fetchResults(youtubeUrl, 'youtube');
-        }
-      } else {
-        normalizedSongs = await fetchResults(youtubeUrl, 'youtube');
+        normalizedSongs = normalizeResponse(data.songs || [], 'youtube');
       }
 
       setResults(normalizedSongs);
       
-      // Pre-cache first 10 results in the background (non-blocking)
       // Update recent searches
       setRecentSearches(prev => {
         const updated = [trimmed, ...prev.filter(t => t.toLowerCase() !== trimmed.toLowerCase())].slice(0, 5);
@@ -99,6 +271,10 @@ export default function Search() {
       setError("Search failed. Make sure the server is running and try again.");
     } finally {
       setLoading(false);
+      if (Date.now() >= spotifyRateLimitUntilRef.current) {
+        setSpotifyLookupActive(false);
+        setSpotifyLookupMessage('');
+      }
     }
   };
 
@@ -139,16 +315,25 @@ export default function Search() {
     setNowPlayingOpen(true);
   };
 
-  const handlePlayClick = (item, e) => {
-    if (e) e.stopPropagation();
-    
+  const handlePlayClick = async (item, e) => {
+    e.stopPropagation();
+
     const isCurrent = currentTrack && (currentTrack.id === item.id || currentTrack._id === item._id);
     if (isCurrent) {
       if (!isPlaying) togglePlay();
-    } else {
-      const playableResults = results.filter(r => r.type !== 'playlist');
-      playTrack(item, playableResults);
+      return;
     }
+
+    const playableResults = results.filter((r) => r.type !== 'playlist');
+    const updatedTrack = await ensureSpotifyUriForTrack(item);
+    const itemIndex = playableResults.findIndex((r) => r.id === item.id || r._id === item._id);
+    const upcomingQueue = itemIndex >= 0 ? playableResults.slice(itemIndex + 1, itemIndex + 1 + 2) : playableResults.slice(0, 2);
+
+    void batchResolveSpotifyUris(upcomingQueue);
+
+    void playTrack(updatedTrack, playableResults).catch((err) => {
+      console.error('[Search] playTrack failed', err);
+    });
   };
 
   const handleAddPlaylist = async (item, e) => {
@@ -293,6 +478,11 @@ export default function Search() {
           {error}
         </div>
       )}
+      {spotifyLookupActive && (
+        <div className="bg-blue-950/20 border border-blue-500/20 text-blue-200 rounded-xl px-4 py-3 text-xs max-w-2xl">
+          {spotifyLookupMessage || 'Loading Spotify results...'}
+        </div>
+      )}
 
       {/* Results grid */}
       {!loading && results.length > 0 && (
@@ -369,7 +559,9 @@ export default function Search() {
                           onClick={(e) => handlePlayClick(item, e)}
                           className="w-12 h-12 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/40 hover:scale-110 active:scale-95 transition-transform cursor-pointer"
                         >
-                          {showPlaying ? (
+                          {item.spotifyLoading ? (
+                            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : showPlaying ? (
                             <Pause className="w-5 h-5 text-white fill-white" />
                           ) : (
                             <Play className="w-5 h-5 text-white fill-white ml-0.5" />
